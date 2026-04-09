@@ -13,9 +13,10 @@ from app.models.schemas import (
     TranslationResponse,
     DefinitionResponse,
     ImageResult,
+    WordReferenceResponse,
 )
 from app.routers import translate, define, images, tts, epub
-from app.services import ollama_client, dictionary, image_search
+from app.services import ollama_client, dictionary, image_search, wordreference
 
 
 @asynccontextmanager
@@ -91,9 +92,21 @@ async def unified_search(req: SearchRequest):
             print(f"[search] Image search error: {e}")
             return []
 
+    async def _wordreference():
+        try:
+            result = await wordreference.lookup(
+                word=req.text,
+                source_lang=req.source_lang,
+                target_lang=req.target_lang
+            )
+            return WordReferenceResponse(**result) if result else None
+        except Exception as e:
+            print(f"[search] WordReference error: {e}")
+            return None
+
     # Execute all in parallel
-    translation, definition, image_results = await asyncio.gather(
-        _translate(), _define(), _images()
+    translation, definition, image_results, wordref = await asyncio.gather(
+        _translate(), _define(), _images(), _wordreference()
     )
 
     # Build TTS URL — use source_lang if specified, otherwise fall back to target_lang
@@ -104,6 +117,7 @@ async def unified_search(req: SearchRequest):
         translation=translation,
         definition=definition,
         images=image_results or [],
+        wordreference=wordref,
         audio_url=audio_url,
     )
 

@@ -3,6 +3,7 @@ import { HiOutlineSearch, HiOutlineX } from 'react-icons/hi';
 import { useSearch } from '../hooks/useSearch';
 import TranslationCard from './TranslationCard';
 import DefinitionCard from './DefinitionCard';
+import WordReferenceCard from './WordReferenceCard';
 import ImageGrid from './ImageGrid';
 import AudioPlayer from './AudioPlayer';
 
@@ -10,9 +11,10 @@ interface Props {
   selectedText?: string;
   sourceLang: string;
   targetLang: string;
+  isWide?: boolean;
 }
 
-export default function SearchSidebar({ selectedText, sourceLang, targetLang }: Props) {
+export default function SearchSidebar({ selectedText, sourceLang, targetLang, isWide = false }: Props) {
   const [query, setQuery] = useState('');
   const [displayWord, setDisplayWord] = useState('');
   const { result, loading, error, search, clear } = useSearch();
@@ -99,24 +101,48 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang }: 
               </div>
             )}
 
-            {/* Pronunciation (Audio) */}
-            {result.audio_url && (
-              <AudioPlayer audioUrl={result.audio_url} label={displayWord || query} />
-            )}
-
-            {/* Translation */}
-            {result.translation && (
-              <TranslationCard data={result.translation} />
-            )}
-
-            {/* Definition */}
-            {result.definition && (
-              <DefinitionCard data={result.definition} />
-            )}
-
-            {/* Images */}
-            {result.images.length > 0 && (
-              <ImageGrid images={result.images} />
+            {isWide ? (
+              <div className="flex gap-4 items-start w-full">
+                {/* Left Column */}
+                <div className="flex-1 flex flex-col gap-4 min-w-0">
+                  {result.audio_url && (
+                    <AudioPlayer audioUrl={result.audio_url} label={displayWord || query} />
+                  )}
+                  {result.wordreference && (
+                    <WordReferenceCard data={result.wordreference} isWide={isWide} hasAudio={!!result.audio_url} />
+                  )}
+                </div>
+                {/* Right Column */}
+                <div className="flex-1 flex flex-col gap-4 min-w-0">
+                  {result.translation && (
+                    <TranslationCard data={result.translation} />
+                  )}
+                  {result.definition && (
+                    <DefinitionCard data={result.definition} />
+                  )}
+                  {result.images.length > 0 && (
+                    <ImageGrid images={result.images} />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 w-full">
+                {result.audio_url && (
+                  <AudioPlayer audioUrl={result.audio_url} label={displayWord || query} />
+                )}
+                {result.translation && (
+                  <TranslationCard data={result.translation} />
+                )}
+                {result.definition && (
+                  <DefinitionCard data={result.definition} />
+                )}
+                {result.wordreference && (
+                  <WordReferenceCard data={result.wordreference} hasAudio={!!result.audio_url} />
+                )}
+                {result.images.length > 0 && (
+                  <ImageGrid images={result.images} />
+                )}
+              </div>
             )}
           </>
         )}

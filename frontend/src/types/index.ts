@@ -25,10 +25,35 @@ export interface ImageResult {
   title: string;
 }
 
+export interface WRExample {
+  source: string;
+  target: string;
+}
+
+export interface WREntry {
+  source_word: string;
+  source_pos: string;
+  context: string;
+  target_word: string;
+  target_pos: string;
+  examples: WRExample[];
+}
+
+export interface WRCategory {
+  title: string;
+  entries: WREntry[];
+}
+
+export interface WordReferenceResponse {
+  word: string;
+  categories: WRCategory[];
+}
+
 export interface SearchResponse {
   translation: TranslationResponse | null;
   definition: DefinitionResponse | null;
   images: ImageResult[];
+  wordreference: WordReferenceResponse | null;
   audio_url: string;
 }
 

@@ -193,7 +193,7 @@ export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Prop
               const text = sel?.toString().trim();
               if (text && text.length > 0 && text !== lastSelectedRef.current) {
                 lastSelectedRef.current = text;
-                if (onTextSelectRef.current) {
+                if (onTextSelectRef.current && !isHighlighterOnRef.current && !isEraserOnRef.current) {
                   onTextSelectRef.current(text);
                 }
               }
@@ -218,7 +218,7 @@ export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Prop
                               if (isEraserOnRef.current) {
                                 renditionRef.current?.annotations.remove(cfiRange, 'highlight');
                                 removeHighlightStore(bookId, cfiRange);
-                              } else if (onTextSelectRef.current && currentText) {
+                              } else if (onTextSelectRef.current && currentText && !isHighlighterOnRef.current) {
                                 onTextSelectRef.current(currentText);
                               }
                             });
@@ -245,7 +245,7 @@ export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Prop
             if (isEraserOnRef.current) {
               rendition.annotations.remove(h.cfi, 'highlight');
               removeHighlightStore(bookId, h.cfi);
-            } else if (onTextSelectRef.current && h.text) {
+            } else if (onTextSelectRef.current && h.text && !isHighlighterOnRef.current) {
               onTextSelectRef.current(h.text);
             }
           });

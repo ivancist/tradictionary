@@ -62,6 +62,43 @@ export default function App() {
   const [fontSize, setFontSize] = useState(saved.fontSize || 16);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Resize logic for Sidebar
+  const [sidebarWidth, setSidebarWidth] = useState(420);
+  const isResizing = useRef(false);
+  const [isResizingState, setIsResizingState] = useState(false);
+
+  const startResizing = useCallback(() => {
+    isResizing.current = true;
+    setIsResizingState(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    if (isResizing.current) {
+      isResizing.current = false;
+      setIsResizingState(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = '';
+    }
+  }, []);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizing.current) {
+      const newWidth = document.body.clientWidth - e.clientX;
+      setSidebarWidth(Math.max(300, Math.min(newWidth, 1000))); // Min 300px, Max 1000px
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [resize, stopResizing]);
+
   useEffect(() => {
     saveSettings({ sourceLang, targetLang, showSettings, fontSize });
   }, [sourceLang, targetLang, showSettings, fontSize]);
@@ -196,7 +233,10 @@ export default function App() {
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
           {selectedBook ? (
             /* Reader with max aspect ratio */
-            <div className="flex-1 flex flex-col p-4 overflow-hidden">
+            <div className="flex-1 flex flex-col p-4 overflow-hidden relative">
+              {isResizingState && (
+                <div className="absolute inset-0 z-50 cursor-col-resize" />
+              )}
               <div className="flex-1 w-full max-w-[900px] mx-auto flex flex-col overflow-hidden">
                 <EpubReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} />
               </div>
@@ -274,12 +314,20 @@ export default function App() {
           )}
         </main>
 
-        {/* RIGHT: Sidebar — always visible */}
-        <aside className="w-[420px] border-l border-surface-700/30 bg-surface-900/40 p-4 flex flex-col shrink-0 overflow-hidden">
+        {/* RIGHT: Sidebar — Resizable */}
+        <div
+          className="w-1.5 cursor-col-resize hover:bg-primary-500/50 bg-surface-700/30 transition-colors shrink-0 z-10"
+          onMouseDown={startResizing}
+        />
+        <aside 
+          style={{ width: `${sidebarWidth}px` }}
+          className="bg-surface-900/40 p-4 flex flex-col shrink-0 overflow-hidden"
+        >
           <SearchSidebar
             selectedText={selectedText?.text}
             sourceLang={sourceLang}
             targetLang={targetLang}
+            isWide={sidebarWidth > 670}
           />
         </aside>
       </div>

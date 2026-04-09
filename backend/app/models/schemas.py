@@ -49,10 +49,35 @@ class ImageResult(BaseModel):
     title: str = ""
 
 
+class WRExample(BaseModel):
+    source: str
+    target: str
+
+
+class WREntry(BaseModel):
+    source_word: str
+    source_pos: str
+    context: str
+    target_word: str
+    target_pos: str
+    examples: list[WRExample] = []
+
+
+class WRCategory(BaseModel):
+    title: str
+    entries: list[WREntry] = []
+
+
+class WordReferenceResponse(BaseModel):
+    word: str
+    categories: list[WRCategory] = []
+
+
 class UnifiedSearchResponse(BaseModel):
     translation: TranslationResponse | None = None
     definition: DefinitionResponse | None = None
     images: list[ImageResult] = []
+    wordreference: WordReferenceResponse | None = None
     audio_url: str = ""
 
 

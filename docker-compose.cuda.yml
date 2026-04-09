@@ -1,0 +1,11 @@
+# NVIDIA/CUDA override — adds GPU passthrough to the Ollama service.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.cuda.yml up --build
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

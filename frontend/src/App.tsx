@@ -1,0 +1,288 @@
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { HiOutlineUpload, HiOutlineCog, HiOutlineTrash, HiOutlineBookOpen, HiOutlineArrowLeft, HiOutlinePlus } from 'react-icons/hi';
+import { useEpub } from './hooks/useEpub';
+import EpubReader from './components/EpubReader';
+import SearchSidebar from './components/SearchSidebar';
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'de', label: 'German' },
+  { code: 'it', label: 'Italian' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'zh', label: 'Chinese' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'nl', label: 'Dutch' },
+  { code: 'pl', label: 'Polish' },
+  { code: 'tr', label: 'Turkish' },
+  { code: 'sv', label: 'Swedish' },
+  { code: 'hi', label: 'Hindi' },
+];
+
+// ── Persist settings ──────────────────────────────────
+
+const SETTINGS_KEY = 'tradictionary-settings';
+
+interface SavedSettings {
+  sourceLang: string;
+  targetLang: string;
+  showSettings: boolean;
+  fontSize: number;
+}
+
+function loadSettings(): SavedSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { sourceLang: 'auto', targetLang: 'en', showSettings: false, fontSize: 16 };
+}
+
+function saveSettings(s: SavedSettings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+// ── App ───────────────────────────────────────────────
+
+export default function App() {
+  const { books, selectedBook, setSelectedBook, upload, remove } = useEpub();
+  const [selectedText, setSelectedText] = useState<{ text: string; ts: number } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const saved = loadSettings();
+  const [sourceLang, setSourceLang] = useState(saved.sourceLang);
+  const [targetLang, setTargetLang] = useState(saved.targetLang);
+  const [showSettings, setShowSettings] = useState(saved.showSettings);
+  const [fontSize, setFontSize] = useState(saved.fontSize || 16);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    saveSettings({ sourceLang, targetLang, showSettings, fontSize });
+  }, [sourceLang, targetLang, showSettings, fontSize]);
+
+  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await upload(file);
+      e.target.value = '';
+    }
+  }, [upload]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.toLowerCase().endsWith('.epub')) {
+      await upload(file);
+    }
+  }, [upload]);
+
+  const handleTextSelect = useCallback((text: string) => {
+    setSelectedText({ text, ts: Date.now() });
+  }, []);
+
+  // ── RENDER ──────────────────────────────────────────
+  return (
+    <div
+      className="h-screen flex flex-col bg-surface-950 text-gray-100"
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+    >
+      {/* Hidden file input */}
+      <input ref={fileInputRef} type="file" accept=".epub" onChange={handleUpload} className="hidden" id="epub-upload" />
+
+      {/* Drag overlay */}
+      {dragOver && (
+        <div className="fixed inset-0 z-50 bg-primary-500/10 border-2 border-dashed border-primary-500/50 flex items-center justify-center pointer-events-none">
+          <div className="bg-surface-900/90 rounded-2xl px-12 py-8 text-center backdrop-blur-md">
+            <HiOutlineUpload className="w-12 h-12 text-primary-400 mx-auto mb-3" />
+            <p className="text-lg font-semibold text-white">Drop your EPUB here</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Header ───────────────────────────────── */}
+      <header className="flex items-center justify-between px-6 py-3 bg-surface-900/80 backdrop-blur-md border-b border-surface-700/30 shrink-0">
+        <div className="flex items-center gap-3">
+          {selectedBook ? (
+            <>
+              <button
+                onClick={() => setSelectedBook(null)}
+                className="p-2 rounded-lg text-surface-200/60 hover:text-white hover:bg-surface-800/50 transition-all duration-200"
+                title="Back to library"
+              >
+                <HiOutlineArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-sm font-bold text-white leading-tight truncate max-w-[300px]">
+                  {selectedBook.title}
+                </h1>
+                <p className="text-xs text-surface-200/40">{selectedBook.author}</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
+                <HiOutlineBookOpen className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-primary-300 to-primary-500 bg-clip-text text-transparent">
+                Tradictionary
+              </h1>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary-600/20 text-primary-300 hover:bg-primary-600/30 hover:text-primary-200 transition-all duration-200 border border-primary-500/20"
+          >
+            <HiOutlineUpload className="w-4 h-4" />
+            Upload
+          </button>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-2 rounded-lg transition-all duration-200 ${
+              showSettings
+                ? 'bg-primary-600/30 text-primary-300'
+                : 'text-surface-200/50 hover:text-surface-200/80 hover:bg-surface-800/50'
+            }`}
+          >
+            <HiOutlineCog className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
+
+      {/* ── Settings ─────────────────────────────── */}
+      {showSettings && (
+        <div className="px-6 py-3 bg-surface-900/60 border-b border-surface-700/20 flex items-center gap-6 shrink-0">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-surface-200/50 uppercase tracking-wider">Source</label>
+            <select value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}
+              className="bg-surface-800 border border-surface-700/50 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500/50">
+              <option value="auto">Auto-detect</option>
+              {LANGUAGES.map(l => (<option key={l.code} value={l.code}>{l.label}</option>))}
+            </select>
+          </div>
+          <span className="text-surface-200/30">→</span>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-surface-200/50 uppercase tracking-wider">Target</label>
+            <select value={targetLang} onChange={(e) => setTargetLang(e.target.value)}
+              className="bg-surface-800 border border-surface-700/50 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500/50">
+              {LANGUAGES.map(l => (<option key={l.code} value={l.code}>{l.label}</option>))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 ml-6">
+            <label className="text-xs text-surface-200/50 uppercase tracking-wider">Font</label>
+            <input type="range" min={10} max={48} step={1} value={fontSize}
+              onChange={(e) => setFontSize(Number(e.target.value))} className="w-24 accent-primary-500" />
+            <span className="text-xs text-surface-200/60 w-8">{fontSize}px</span>
+          </div>
+          <span className="text-xs text-surface-200/30 ml-auto">Settings saved automatically</span>
+        </div>
+      )}
+
+      {/* ── Main: Left content + Right sidebar ─── */}
+      <div className="flex-1 flex overflow-hidden">
+
+        {/* LEFT: Reader or Library grid */}
+        <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {selectedBook ? (
+            /* Reader with max aspect ratio */
+            <div className="flex-1 flex flex-col p-4 overflow-hidden">
+              <div className="flex-1 w-full max-w-[900px] mx-auto flex flex-col overflow-hidden">
+                <EpubReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} />
+              </div>
+            </div>
+          ) : (
+            /* Library grid */
+            <div className="flex-1 overflow-y-auto px-8 py-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                {/* Add book card */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group aspect-[2/3] rounded-xl border-2 border-dashed border-surface-700/40 hover:border-primary-500/50 bg-surface-800/30 hover:bg-surface-800/60 flex flex-col items-center justify-center gap-3 transition-all duration-300"
+                >
+                  <div className="w-14 h-14 rounded-full bg-primary-500/10 group-hover:bg-primary-500/20 flex items-center justify-center transition-all duration-300">
+                    <HiOutlinePlus className="w-7 h-7 text-primary-400/60 group-hover:text-primary-300 transition-colors" />
+                  </div>
+                  <span className="text-sm text-surface-200/40 group-hover:text-surface-200/70 transition-colors">Add Book</span>
+                </button>
+
+                {/* Book cards */}
+                {books.map((book) => (
+                  <div key={book.id} className="group relative">
+                    <button
+                      onClick={() => setSelectedBook(book)}
+                      className="w-full aspect-[2/3] rounded-xl overflow-hidden bg-surface-800/50 border border-surface-700/30 hover:border-primary-500/40 shadow-lg hover:shadow-primary-500/10 transition-all duration-300 hover:scale-[1.03] flex flex-col"
+                    >
+                      <div className="flex-1 bg-gradient-to-br from-surface-700/50 to-surface-800/50 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={`/api/epub/${book.id}/cover`}
+                          alt={book.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                        <div className="hidden flex-col items-center justify-center gap-2">
+                          <HiOutlineBookOpen className="w-10 h-10 text-surface-200/20" />
+                        </div>
+                      </div>
+                      <div className="px-3 py-2.5 bg-surface-900/80 border-t border-surface-700/20">
+                        <p className="text-sm font-medium text-surface-200/80 truncate" title={book.title}>{book.title}</p>
+                        <p className="text-xs text-surface-200/40 truncate">{book.author}</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => remove(book.id)}
+                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-surface-900/70 text-surface-200/30 hover:text-red-400 hover:bg-surface-900/90 opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm"
+                      title="Remove book"
+                    >
+                      <HiOutlineTrash className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Empty state */}
+              {books.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="w-24 h-24 rounded-2xl bg-surface-800/50 flex items-center justify-center mb-6 border border-surface-700/20">
+                    <HiOutlineBookOpen className="w-12 h-12 text-surface-200/20" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-surface-200/60 mb-2">Your library is empty</h2>
+                  <p className="text-sm text-surface-200/40 mb-6">Upload an EPUB or drag & drop one anywhere</p>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-500 transition-all duration-200 shadow-lg shadow-primary-600/20"
+                  >
+                    <HiOutlineUpload className="w-5 h-5" />
+                    Upload your first EPUB
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* RIGHT: Sidebar — always visible */}
+        <aside className="w-[420px] border-l border-surface-700/30 bg-surface-900/40 p-4 flex flex-col shrink-0 overflow-hidden">
+          <SearchSidebar
+            selectedText={selectedText?.text}
+            sourceLang={sourceLang}
+            targetLang={targetLang}
+          />
+        </aside>
+      </div>
+    </div>
+  );
+}

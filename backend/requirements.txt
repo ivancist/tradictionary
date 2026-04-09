@@ -1,0 +1,10 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+python-multipart==0.0.20
+pydantic==2.10.4
+duckduckgo-search==7.3.2
+gTTS==2.5.4
+ebooklib==0.18
+beautifulsoup4==4.12.3
+aiofiles==24.1.0

@@ -63,6 +63,7 @@ export interface EpubInfo {
   author: string;
   filename: string;
   cover_url: string;
+  type: 'epub' | 'pdf';
 }
 
 export interface EpubLibraryResponse {

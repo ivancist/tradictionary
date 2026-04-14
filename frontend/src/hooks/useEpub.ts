@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { EpubInfo } from '../types';
-import { getLibrary, uploadEpub, deleteBook } from '../services/api';
+import { getLibrary, uploadEpub, deleteBook, uploadPdf, loadPdfFromUrl, deletePdf } from '../services/api';
 
 export function useEpub() {
   const [books, setBooks] = useState<EpubInfo[]>([]);
@@ -27,7 +27,27 @@ export function useEpub() {
   const upload = useCallback(async (file: File) => {
     setLoading(true);
     try {
-      const info = await uploadEpub(file);
+      const ext = file.name.toLowerCase().split('.').pop();
+      let info: EpubInfo;
+
+      if (ext === 'pdf') {
+        info = await uploadPdf(file);
+      } else {
+        info = await uploadEpub(file);
+      }
+
+      setBooks(prev => [...prev, info]);
+      setSelectedBook(info);
+      return info;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const importFromUrl = useCallback(async (url: string) => {
+    setLoading(true);
+    try {
+      const info = await loadPdfFromUrl(url);
       setBooks(prev => [...prev, info]);
       setSelectedBook(info);
       return info;
@@ -37,12 +57,17 @@ export function useEpub() {
   }, []);
 
   const remove = useCallback(async (bookId: string) => {
-    await deleteBook(bookId);
+    const book = books.find(b => b.id === bookId);
+    if (book?.type === 'pdf') {
+      await deletePdf(bookId);
+    } else {
+      await deleteBook(bookId);
+    }
     setBooks(prev => prev.filter(b => b.id !== bookId));
     if (selectedBook?.id === bookId) {
       setSelectedBook(null);
     }
-  }, [selectedBook]);
+  }, [selectedBook, books]);
 
-  return { books, selectedBook, setSelectedBook, loading, upload, remove, refresh };
+  return { books, selectedBook, setSelectedBook, loading, upload, remove, refresh, importFromUrl };
 }

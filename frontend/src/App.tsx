@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { HiOutlineUpload, HiOutlineCog, HiOutlineTrash, HiOutlineBookOpen, HiOutlineArrowLeft, HiOutlinePlus } from 'react-icons/hi';
+import { HiOutlineUpload, HiOutlineCog, HiOutlineTrash, HiOutlineBookOpen, HiOutlineArrowLeft, HiOutlinePlus, HiOutlineLink, HiOutlineX } from 'react-icons/hi';
 import { useEpub } from './hooks/useEpub';
 import EpubReader from './components/EpubReader';
+import PdfReader from './components/PdfReader';
 import SearchSidebar from './components/SearchSidebar';
 
 const LANGUAGES = [
@@ -51,7 +52,7 @@ function saveSettings(s: SavedSettings) {
 // ── App ───────────────────────────────────────────────
 
 export default function App() {
-  const { books, selectedBook, setSelectedBook, upload, remove } = useEpub();
+  const { books, selectedBook, setSelectedBook, upload, remove, importFromUrl } = useEpub();
   const [selectedText, setSelectedText] = useState<{ text: string; ts: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -61,6 +62,12 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(saved.showSettings);
   const [fontSize, setFontSize] = useState(saved.fontSize || 16);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // URL import state
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlValue, setUrlValue] = useState('');
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [urlError, setUrlError] = useState('');
 
   // Resize logic for Sidebar
   const [sidebarWidth, setSidebarWidth] = useState(420);
@@ -115,14 +122,39 @@ export default function App() {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.name.toLowerCase().endsWith('.epub')) {
-      await upload(file);
+    if (file) {
+      const name = file.name.toLowerCase();
+      if (name.endsWith('.epub') || name.endsWith('.pdf')) {
+        await upload(file);
+      }
     }
   }, [upload]);
 
   const handleTextSelect = useCallback((text: string) => {
     setSelectedText({ text, ts: Date.now() });
   }, []);
+
+  const handleUrlImport = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!urlValue.trim()) return;
+    setUrlLoading(true);
+    setUrlError('');
+    try {
+      await importFromUrl(urlValue.trim());
+      setUrlValue('');
+      setShowUrlInput(false);
+    } catch (err: any) {
+      setUrlError(err?.response?.data?.detail || err?.message || 'Failed to load PDF');
+    } finally {
+      setUrlLoading(false);
+    }
+  }, [urlValue, importFromUrl]);
+
+  // Helper: get cover URL based on book type
+  const getCoverUrl = (book: typeof books[0]) => {
+    if (book.type === 'pdf') return `/api/pdf/${book.id}/cover`;
+    return `/api/epub/${book.id}/cover`;
+  };
 
   // ── RENDER ──────────────────────────────────────────
   return (
@@ -133,14 +165,15 @@ export default function App() {
       onDrop={handleDrop}
     >
       {/* Hidden file input */}
-      <input ref={fileInputRef} type="file" accept=".epub" onChange={handleUpload} className="hidden" id="epub-upload" />
+      <input ref={fileInputRef} type="file" accept=".epub,.pdf" onChange={handleUpload} className="hidden" id="epub-upload" />
 
       {/* Drag overlay */}
       {dragOver && (
         <div className="fixed inset-0 z-50 bg-primary-500/10 border-2 border-dashed border-primary-500/50 flex items-center justify-center pointer-events-none">
           <div className="bg-surface-900/90 rounded-2xl px-12 py-8 text-center backdrop-blur-md">
             <HiOutlineUpload className="w-12 h-12 text-primary-400 mx-auto mb-3" />
-            <p className="text-lg font-semibold text-white">Drop your EPUB here</p>
+            <p className="text-lg font-semibold text-white">Drop your file here</p>
+            <p className="text-sm text-surface-200/50 mt-1">EPUB or PDF</p>
           </div>
         </div>
       )}
@@ -158,9 +191,16 @@ export default function App() {
                 <HiOutlineArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-sm font-bold text-white leading-tight truncate max-w-[300px]">
-                  {selectedBook.title}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm font-bold text-white leading-tight truncate max-w-[300px]">
+                    {selectedBook.title}
+                  </h1>
+                  {selectedBook.type === 'pdf' && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-rose-500/20 text-rose-300 border border-rose-500/20">
+                      PDF
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-surface-200/40">{selectedBook.author}</p>
               </div>
             </>
@@ -177,6 +217,18 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowUrlInput(!showUrlInput)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border ${
+              showUrlInput
+                ? 'bg-primary-600/30 text-primary-300 border-primary-500/30'
+                : 'bg-surface-800/50 text-surface-200/60 hover:text-surface-200/90 hover:bg-surface-800/80 border-surface-700/30'
+            }`}
+            title="Load PDF from URL"
+          >
+            <HiOutlineLink className="w-4 h-4" />
+            <span className="hidden sm:inline">URL</span>
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary-600/20 text-primary-300 hover:bg-primary-600/30 hover:text-primary-200 transition-all duration-200 border border-primary-500/20"
@@ -196,6 +248,47 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* ── URL Import Bar ─────────────────────────── */}
+      {showUrlInput && (
+        <div className="px-6 py-3 bg-surface-900/60 border-b border-surface-700/20 shrink-0">
+          <form onSubmit={handleUrlImport} className="flex items-center gap-3">
+            <HiOutlineLink className="w-4 h-4 text-surface-200/40 shrink-0" />
+            <input
+              type="url"
+              value={urlValue}
+              onChange={(e) => { setUrlValue(e.target.value); setUrlError(''); }}
+              placeholder="Paste a PDF URL here..."
+              autoFocus
+              className="flex-1 bg-surface-800 border border-surface-700/50 rounded-lg px-4 py-2 text-sm text-gray-200 placeholder-surface-200/30 focus:outline-none focus:ring-1 focus:ring-primary-500/50"
+            />
+            <button
+              type="submit"
+              disabled={urlLoading || !urlValue.trim()}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {urlLoading ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Import'
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowUrlInput(false); setUrlValue(''); setUrlError(''); }}
+              className="p-2 rounded-lg text-surface-200/40 hover:text-surface-200/80 hover:bg-surface-800/50 transition-all duration-200"
+            >
+              <HiOutlineX className="w-4 h-4" />
+            </button>
+          </form>
+          {urlError && (
+            <p className="text-xs text-red-400 mt-2 ml-7">{urlError}</p>
+          )}
+        </div>
+      )}
 
       {/* ── Settings ─────────────────────────────── */}
       {showSettings && (
@@ -238,7 +331,11 @@ export default function App() {
                 <div className="absolute inset-0 z-50 cursor-col-resize" />
               )}
               <div className="flex-1 w-full max-w-[900px] mx-auto flex flex-col overflow-hidden">
-                <EpubReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} />
+                {selectedBook.type === 'pdf' ? (
+                  <PdfReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} />
+                ) : (
+                  <EpubReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} />
+                )}
               </div>
             </div>
           ) : (
@@ -265,7 +362,7 @@ export default function App() {
                     >
                       <div className="flex-1 bg-gradient-to-br from-surface-700/50 to-surface-800/50 flex items-center justify-center overflow-hidden">
                         <img
-                          src={`/api/epub/${book.id}/cover`}
+                          src={getCoverUrl(book)}
                           alt={book.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -278,7 +375,14 @@ export default function App() {
                         </div>
                       </div>
                       <div className="px-3 py-2.5 bg-surface-900/80 border-t border-surface-700/20">
-                        <p className="text-sm font-medium text-surface-200/80 truncate" title={book.title}>{book.title}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium text-surface-200/80 truncate flex-1" title={book.title}>{book.title}</p>
+                          {book.type === 'pdf' && (
+                            <span className="px-1 py-0.5 text-[9px] font-bold uppercase rounded bg-rose-500/20 text-rose-300 shrink-0">
+                              PDF
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-surface-200/40 truncate">{book.author}</p>
                       </div>
                     </button>
@@ -300,14 +404,23 @@ export default function App() {
                     <HiOutlineBookOpen className="w-12 h-12 text-surface-200/20" />
                   </div>
                   <h2 className="text-xl font-semibold text-surface-200/60 mb-2">Your library is empty</h2>
-                  <p className="text-sm text-surface-200/40 mb-6">Upload an EPUB or drag & drop one anywhere</p>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-500 transition-all duration-200 shadow-lg shadow-primary-600/20"
-                  >
-                    <HiOutlineUpload className="w-5 h-5" />
-                    Upload your first EPUB
-                  </button>
+                  <p className="text-sm text-surface-200/40 mb-6">Upload an EPUB or PDF, drag & drop, or import from a URL</p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-500 transition-all duration-200 shadow-lg shadow-primary-600/20"
+                    >
+                      <HiOutlineUpload className="w-5 h-5" />
+                      Upload File
+                    </button>
+                    <button
+                      onClick={() => setShowUrlInput(true)}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-800/80 text-surface-200/70 font-medium hover:bg-surface-800 hover:text-white transition-all duration-200 border border-surface-700/30"
+                    >
+                      <HiOutlineLink className="w-5 h-5" />
+                      From URL
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

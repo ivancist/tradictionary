@@ -31,6 +31,28 @@ export function getEpubUrl(bookId: string): string {
   return `/api/epub/${bookId}`;
 }
 
+// ── PDF API ──────────────────────────────────────────────
+
+export async function uploadPdf(file: File): Promise<EpubInfo> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await api.post<EpubInfo>('/pdf/upload', form);
+  return data;
+}
+
+export async function loadPdfFromUrl(url: string): Promise<EpubInfo> {
+  const { data } = await api.post<EpubInfo>('/pdf/from-url', { url });
+  return data;
+}
+
+export function getPdfUrl(bookId: string): string {
+  return `/api/pdf/${bookId}`;
+}
+
+export async function deletePdf(bookId: string): Promise<void> {
+  await api.delete(`/pdf/${bookId}`);
+}
+
 export function getTtsUrl(text: string, lang: string): string {
   return `/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
 }

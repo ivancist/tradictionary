@@ -87,6 +87,7 @@ class EpubInfo(BaseModel):
     author: str = ""
     filename: str
     cover_url: str = ""
+    type: str = "epub"
 
 
 class EpubLibraryResponse(BaseModel):

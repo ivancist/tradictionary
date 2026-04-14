@@ -59,3 +59,31 @@ body {
 .epub-container {
   overflow: hidden !important;
 }
+
+/* ── PDF viewer (react-pdf) ────────────────────────── */
+
+.pdf-viewer-container .react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pdf-viewer-container .react-pdf__Page {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pdf-viewer-container .react-pdf__Page__textContent {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.pdf-viewer-container .react-pdf__Page__textContent ::selection {
+  background: rgba(99, 102, 241, 0.4);
+}
+
+.pdf-viewer-container .react-pdf__Page__annotations a {
+  color: #818cf8;
+}
+

@@ -24,13 +24,28 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
   const { result, error, search, clear } = useSearch();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // When selectedText changes, auto-populate and search
+  // Redirect any keypress to the search input when not already focused
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement).isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length === 1) {
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // When selectedText changes, search silently (never touch the search bar)
   useEffect(() => {
     if (selectedText && selectedText.trim()) {
       const text = selectedText.trim();
-      setQuery(text);
       setDisplayWord(text);
       search({ text, source_lang: sourceLang, target_lang: targetLang });
+      // Focus input after selection so typing lands there immediately
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [selectedText, sourceLang, targetLang, search]);
 
@@ -40,12 +55,13 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
     if (!trimmed) return;
     setDisplayWord(trimmed);
     search({ text: trimmed, source_lang: sourceLang, target_lang: targetLang });
+    // Clear bar and focus after submit
+    setQuery('');
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   const handleClear = () => {
     setQuery('');
-    setDisplayWord('');
-    clear();
     inputRef.current?.focus();
   };
 
@@ -62,7 +78,7 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search a word or phrase..."
-            className="w-full pl-11 pr-10 py-3 bg-surface-800/80 border border-surface-700/50 rounded-xl text-gray-100 placeholder-surface-200/30 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all duration-200"
+            className="w-full pl-11 pr-10 py-3 bg-surface-800/80 border border-surface-700/50 rounded-xl text-gray-100 placeholder-surface-200/30 outline-none focus:ring-2 focus:ring-primary-500/50 transition-shadow duration-200"
           />
           {query && (
             <button
@@ -121,8 +137,13 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
                   )}
                   
                   {result.wordCount <= 4 && (
-                    result.definition ? (
-                      <DefinitionCard data={result.definition} />
+                    (result.definitionSrc || result.definitionTgt) ? (
+                      <DefinitionCard 
+                        sourceData={result.definitionSrc} 
+                        targetData={result.definitionTgt} 
+                        sourceLang={sourceLang} 
+                        targetLang={targetLang} 
+                      />
                     ) : (
                       <Skeleton h="h-40" />
                     )
@@ -152,8 +173,13 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
                 )}
                 
                 {result.wordCount <= 4 && (
-                  result.definition ? (
-                    <DefinitionCard data={result.definition} />
+                  (result.definitionSrc || result.definitionTgt) ? (
+                    <DefinitionCard 
+                      sourceData={result.definitionSrc} 
+                      targetData={result.definitionTgt} 
+                      sourceLang={sourceLang} 
+                      targetLang={targetLang} 
+                    />
                   ) : (
                     <Skeleton h="h-40" />
                   )

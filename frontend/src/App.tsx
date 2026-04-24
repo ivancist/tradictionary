@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { HiOutlineUpload, HiOutlineCog, HiOutlineTrash, HiOutlineBookOpen, HiOutlineArrowLeft, HiOutlinePlus, HiOutlineLink, HiOutlineX } from 'react-icons/hi';
+import { HiOutlineUpload, HiOutlineCog, HiOutlineTrash, HiOutlineBookOpen, HiOutlineArrowLeft, HiOutlinePlus, HiOutlineLink, HiOutlineX, HiOutlineSwitchHorizontal } from 'react-icons/hi';
 import { useEpub } from './hooks/useEpub';
 import EpubReader from './components/EpubReader';
 import PdfReader from './components/PdfReader';
@@ -311,7 +311,22 @@ export default function App() {
               {LANGUAGES.map(l => (<option key={l.code} value={l.code}>{l.label}</option>))}
             </select>
           </div>
-          <span className="text-surface-200/30">→</span>
+          
+          <button 
+             onClick={() => {
+                if (sourceLang !== 'auto') {
+                   const temp = sourceLang;
+                   setSourceLang(targetLang);
+                   setTargetLang(temp);
+                }
+             }}
+             disabled={sourceLang === 'auto'}
+             className="px-2 py-1 text-surface-200/40 hover:text-surface-200/80 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+             title={sourceLang === 'auto' ? "Cannot swap with auto-detect" : "Swap languages"}
+          >
+             <HiOutlineSwitchHorizontal className="w-5 h-5" />
+          </button>
+          
           <div className="flex items-center gap-2">
             <label className="text-xs text-surface-200/50 uppercase tracking-wider">Target</label>
             <select value={targetLang} onChange={(e) => setTargetLang(e.target.value)}

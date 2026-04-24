@@ -39,7 +39,7 @@ export default function AudioPlayer({ audioUrl, label }: Props) {
           onClick={togglePlay}
           disabled={loading}
           className={`
-            flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200
+            flex items-center justify-center w-10 h-10 shrink-0 rounded-full transition-all duration-200
             ${playing
               ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'
               : 'bg-surface-700/60 text-primary-400 hover:bg-primary-500/20 hover:text-primary-300'

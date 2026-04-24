@@ -11,7 +11,7 @@ export async function unifiedSearch(req: SearchRequest): Promise<SearchResponse>
   return data;
 }
 
-export async function searchTranslation(req: { text: string; source_lang: string; target_lang: string }) {
+export async function searchTranslation(req: { text: string; source_lang: string; target_lang: string; wr_context?: string }) {
   const { data } = await api.post('/translate', req);
   return data;
 }

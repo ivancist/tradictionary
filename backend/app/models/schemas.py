@@ -15,6 +15,7 @@ class TranslateRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=1000)
     source_lang: str = Field(default="auto", max_length=10)
     target_lang: str = Field(default="en", max_length=10)
+    wr_context: str | None = Field(default=None)
 
 
 class DefineRequest(BaseModel):
@@ -29,6 +30,7 @@ class TranslationResponse(BaseModel):
     source_lang: str
     target_lang: str
     examples: list[str] = []
+    is_examples_only: bool = False
 
 
 class DefinitionMeaning(BaseModel):

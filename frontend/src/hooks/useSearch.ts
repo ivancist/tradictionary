@@ -4,7 +4,8 @@ import { searchTranslation, searchDefinition, searchImages, searchWordReference,
 
 export interface PartialResults {
   translation?: TranslationResponse;
-  definition?: DefinitionResponse;
+  definitionSrc?: DefinitionResponse;
+  definitionTgt?: DefinitionResponse;
   wordreference?: WordReferenceResponse;
   images?: ImageResult[];
   audio_url?: string;
@@ -39,28 +40,76 @@ export function useSearch() {
       });
     };
 
-    // 1. Translation
-    searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang })
-      .then(t => update({ translation: t }))
-      .catch(e => console.error("Translation fail", e));
-      
-    // 2. Audio URL
+    // Immediate audio fetch
     const ttsLang = req.source_lang !== 'auto' ? req.source_lang : req.target_lang;
     update({ audio_url: getTtsUrl(req.text, ttsLang) });
     
-    // Short queries
     if (wordCount <= 4) {
-      searchDefinition({ word: req.text, lang: req.source_lang })
-        .then(d => update({ definition: d }))
-        .catch(e => console.error("Definition fail", e));
-        
-      searchWordReference(req)
-        .then(w => update({ wordreference: w }))
-        .catch(e => console.error("WordReference fail", e));
+      const actualSourceLang = req.source_lang === 'auto' ? 'en' : req.source_lang;
+
+      // Parallel non-blocking sources
+      searchDefinition({ word: req.text, lang: actualSourceLang })
+        .then(d => update({ definitionSrc: d }))
+        .catch(e => console.error("Definition (src) fail", e));
         
       searchImages(req.text)
         .then(i => update({ images: i }))
         .catch(e => console.error("Images fail", e));
+
+      // Sequential: WR -> Translation -> Target Definition
+      searchWordReference(req)
+        .then(w => {
+           update({ wordreference: w });
+           
+           let wr_context = "";
+           let topTargetWord = "";
+           
+           if (w.categories && w.categories.length > 0) {
+              const entries = w.categories.flatMap(c => c.entries).slice(0, 4);
+              if (entries.length > 0) {
+                 topTargetWord = entries[0].target_word;
+                 wr_context = entries.map((e, i) => {
+                   const posTag = e.source_pos
+                     ? `(${e.source_pos}${e.context ? ` - ${e.context}` : ''})`
+                     : e.context ? `(${e.context})` : '';
+                   return `${i + 1}. ${posTag} ${e.source_word} -> ${e.target_word}`;
+                 }).join('\n');
+              }
+           }
+           
+           searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang, wr_context: wr_context || undefined })
+             .then(t => {
+               update({ translation: t });
+               
+               const wordForDef = topTargetWord || t.translated_text;
+               if (wordForDef) {
+                 const cleanWord = wordForDef.split(',')[0].trim().replace(/^(il|lo|la|i|gli|le|una|uno|un|to|el|los|las)\s+/i, '');
+                 searchDefinition({ word: cleanWord, lang: req.target_lang })
+                   .then(d => update({ definitionTgt: d }))
+                   .catch();
+               }
+             })
+             .catch();
+        })
+        .catch(e => {
+           console.error("WordReference fail", e);
+           // Fallback if WR throws network error
+           searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang })
+             .then(t => {
+               update({ translation: t });
+               if (t.translated_text) {
+                 searchDefinition({ word: t.translated_text, lang: req.target_lang })
+                   .then(d => update({ definitionTgt: d }))
+                   .catch();
+               }
+             })
+             .catch();
+        });
+    } else {
+       // Long texts bypass WR entirely
+       searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang })
+         .then(t => update({ translation: t }))
+         .catch(e => console.error("Translation fail", e));
     }
     
     setTimeout(() => {

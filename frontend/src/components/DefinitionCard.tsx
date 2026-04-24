@@ -1,27 +1,59 @@
+import { useState } from 'react';
 import type { DefinitionResponse } from '../types';
-import { HiOutlineBookOpen } from 'react-icons/hi';
+import { HiOutlineBookOpen, HiOutlineSwitchHorizontal } from 'react-icons/hi';
 
 interface Props {
-  data: DefinitionResponse;
+  sourceData?: DefinitionResponse;
+  targetData?: DefinitionResponse;
+  sourceLang: string;
+  targetLang: string;
 }
 
-export default function DefinitionCard({ data }: Props) {
+export default function DefinitionCard({ sourceData, targetData, sourceLang, targetLang }: Props) {
+  const [showTarget, setShowTarget] = useState(false);
+
+  // Determine which data to show. Fallback to the other if the requested one is missing yet.
+  const activeData = showTarget 
+    ? (targetData || sourceData) 
+    : (sourceData || targetData);
+    
+  if (!activeData) return null;
+
+  const handleToggle = () => {
+    // Only toggle if both are available, or just let it toggle 
+    setShowTarget(!showTarget);
+  };
+
+  const isShowingTarget = activeData === targetData;
+
   return (
-    <div className="bg-surface-800/60 backdrop-blur-sm rounded-xl border border-surface-700/50 p-5 animate-fade-in">
+    <div className="bg-surface-800/60 backdrop-blur-sm rounded-xl border border-surface-700/50 p-5 animate-fade-in relative">
       <div className="flex items-center gap-2 mb-3">
         <HiOutlineBookOpen className="w-5 h-5 text-emerald-400" />
         <h3 className="text-sm font-semibold text-emerald-300 uppercase tracking-wider">Definition</h3>
-        {data.source && (
-          <span className="ml-auto text-xs text-surface-200/40 italic">{data.source}</span>
+        
+        {sourceData && targetData && (
+          <button 
+            onClick={handleToggle}
+            className="ml-2 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface-700/50 hover:bg-surface-700 text-xs text-surface-200 transition-colors"
+            title="Switch Language"
+          >
+            <HiOutlineSwitchHorizontal className="w-3.5 h-3.5" />
+            <span className="uppercase font-medium">{isShowingTarget ? targetLang : (sourceLang === 'auto' ? 'en' : sourceLang)}</span>
+          </button>
+        )}
+
+        {activeData.source && (
+          <span className="ml-auto text-[10px] text-surface-200/40 italic uppercase tracking-wider">{activeData.source}</span>
         )}
       </div>
 
-      {data.phonetic && (
-        <p className="text-sm text-surface-200/70 mb-3 font-mono">{data.phonetic}</p>
+      {activeData.phonetic && (
+        <p className="text-sm text-surface-200/70 mb-3 font-mono">{activeData.phonetic}</p>
       )}
 
       <div className="space-y-3">
-        {data.meanings.map((m, i) => (
+        {activeData.meanings.map((m, i) => (
           <div key={i}>
             <span className="inline-block text-xs font-semibold text-amber-400/80 bg-amber-400/10 rounded-full px-2.5 py-0.5 mb-1.5">
               {m.part_of_speech}

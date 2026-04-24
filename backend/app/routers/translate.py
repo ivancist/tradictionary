@@ -15,6 +15,7 @@ async def translate(req: TranslateRequest):
             text=req.text,
             source_lang=req.source_lang,
             target_lang=req.target_lang,
+            wr_context=req.wr_context,
         )
         return TranslationResponse(**result)
     except Exception as e:

@@ -70,7 +70,10 @@ export default function App() {
   const [urlError, setUrlError] = useState('');
 
   // Resize logic for Sidebar
-  const [sidebarWidth, setSidebarWidth] = useState(420);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('tradictionary-sidebar-width');
+    return saved ? parseInt(saved, 10) : 420;
+  });
   const isResizing = useRef(false);
   const [isResizingState, setIsResizingState] = useState(false);
 
@@ -105,6 +108,13 @@ export default function App() {
       window.removeEventListener('mouseup', stopResizing);
     };
   }, [resize, stopResizing]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      localStorage.setItem('tradictionary-sidebar-width', sidebarWidth.toString());
+    }, 500);
+    return () => clearTimeout(t);
+  }, [sidebarWidth]);
 
   useEffect(() => {
     saveSettings({ sourceLang, targetLang, showSettings, fontSize });

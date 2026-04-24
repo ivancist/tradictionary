@@ -15,7 +15,7 @@ from app.models.schemas import (
     ImageResult,
     WordReferenceResponse,
 )
-from app.routers import translate, define, images, tts, epub, pdf
+from app.routers import translate, define, images, tts, epub, pdf, wordreference as wordref_router
 from app.services import ollama_client, dictionary, image_search, wordreference
 
 
@@ -57,6 +57,7 @@ app.include_router(images.router)
 app.include_router(tts.router)
 app.include_router(epub.router)
 app.include_router(pdf.router)
+app.include_router(wordref_router.router)
 
 
 # ── Unified Search endpoint ──────────────────────────────

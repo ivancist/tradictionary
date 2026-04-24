@@ -11,6 +11,26 @@ export async function unifiedSearch(req: SearchRequest): Promise<SearchResponse>
   return data;
 }
 
+export async function searchTranslation(req: { text: string; source_lang: string; target_lang: string }) {
+  const { data } = await api.post('/translate', req);
+  return data;
+}
+
+export async function searchDefinition(req: { word: string; lang: string }) {
+  const { data } = await api.post('/define', req);
+  return data;
+}
+
+export async function searchImages(query: string, max: number = 6) {
+  const { data } = await api.get(`/images?q=${encodeURIComponent(query)}&max=${max}`);
+  return data;
+}
+
+export async function searchWordReference(req: SearchRequest) {
+  const { data } = await api.post('/wordreference', req);
+  return data;
+}
+
 export async function uploadEpub(file: File): Promise<EpubInfo> {
   const form = new FormData();
   form.append('file', file);

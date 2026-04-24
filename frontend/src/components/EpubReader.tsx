@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ePub from 'epubjs';
 import type Book from 'epubjs/types/book';
 import type Rendition from 'epubjs/types/rendition';
@@ -94,7 +94,7 @@ function percentageToPage(pct: number, total: number): number {
 
 // ── Component ──────────────────────────────────────────
 
-export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Props) {
+export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -178,7 +178,7 @@ export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Prop
           }
         });
 
-        // ── Poll iframe selection & Event Attachment ───────────────────
+        // ── Poll iframe Event Attachment ───────────────────
         if (selectionPollRef.current) clearInterval(selectionPollRef.current);
         selectionPollRef.current = setInterval(() => {
           try {
@@ -188,25 +188,25 @@ export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Prop
               const iframeWin = iframe.contentWindow;
               if (!iframeWin) continue;
 
-              // 1. Check for text selection
-              const sel = iframeWin.getSelection();
-              const text = sel?.toString().trim();
-              if (text && text.length > 0 && text !== lastSelectedRef.current) {
-                lastSelectedRef.current = text;
-                if (onTextSelectRef.current && !isHighlighterOnRef.current && !isEraserOnRef.current) {
-                  onTextSelectRef.current(text);
-                }
-              }
-
-              // 2. Attach Highlighting listeners reliably to any newly loaded iframe
+              // Attach Highlighting & Selection listeners reliably to any newly loaded iframe
               if (iframe.dataset.hasHighlighterListener !== 'true') {
                 iframe.dataset.hasHighlighterListener = 'true';
 
                 const handleSelectionEnd = () => {
-                  if (!isHighlighterOnRef.current) return;
                   setTimeout(() => {
                     const currentSel = iframeWin.getSelection();
                     const currentText = currentSel?.toString().trim();
+                    
+                    if (!isHighlighterOnRef.current) {
+                       if (currentText && currentText.length > 0 && currentText !== lastSelectedRef.current) {
+                         lastSelectedRef.current = currentText;
+                         if (onTextSelectRef.current && !isEraserOnRef.current) {
+                           onTextSelectRef.current(currentText);
+                         }
+                       }
+                       return;
+                    }
+                    
                     if (currentText && currentText.length > 0 && currentSel && currentSel.rangeCount > 0) {
                       const range = currentSel.getRangeAt(0);
                       try {
@@ -233,6 +233,7 @@ export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Prop
 
                 iframeWin.addEventListener('mouseup', handleSelectionEnd);
                 iframeWin.addEventListener('touchend', handleSelectionEnd);
+                iframeWin.addEventListener('pointerup', handleSelectionEnd);
               }
             }
           } catch { }
@@ -434,7 +435,7 @@ export default function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Prop
       )}
     </div>
   );
-}
+});
 
 // ── Helpers ────────────────────────────────────────────
 

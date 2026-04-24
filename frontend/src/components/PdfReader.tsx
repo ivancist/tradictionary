@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { flushSync } from 'react-dom';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -138,7 +138,7 @@ function VirtualPage({
 }
 
 
-export default function PdfReader({ bookId, onTextSelect }: Props) {
+export default React.memo(function PdfReader({ bookId, onTextSelect }: Props) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(() => getSavedPage(bookId));
   const [loading, setLoading] = useState(true);
@@ -167,11 +167,22 @@ export default function PdfReader({ bookId, onTextSelect }: Props) {
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => {
+    const handleSelection = () => {
       const text = window.getSelection()?.toString().trim();
-      if (text && onTextSelectRef.current) onTextSelectRef.current(text);
-    }, 500);
-    return () => clearInterval(id);
+      if (text && onTextSelectRef.current) {
+        onTextSelectRef.current(text);
+      }
+    };
+    
+    document.addEventListener('mouseup', handleSelection);
+    document.addEventListener('touchend', handleSelection);
+    document.addEventListener('pointerup', handleSelection);
+    
+    return () => {
+      document.removeEventListener('mouseup', handleSelection);
+      document.removeEventListener('touchend', handleSelection);
+      document.removeEventListener('pointerup', handleSelection);
+    };
   }, []);
 
   useEffect(() => { setCurrentPage(getSavedPage(bookId)); setLoading(true); }, [bookId]);
@@ -409,4 +420,4 @@ export default function PdfReader({ bookId, onTextSelect }: Props) {
       )}
     </div>
   );
-}
+});

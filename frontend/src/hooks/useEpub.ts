@@ -6,23 +6,40 @@ export function useEpub() {
   const [books, setBooks] = useState<EpubInfo[]>([]);
   const [selectedBook, setSelectedBook] = useState<EpubInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const { books: list } = await getLibrary();
       setBooks(list);
+      
+      const savedId = localStorage.getItem('tradictionary-selected-book');
+      if (savedId) {
+        const book = list.find(b => b.id === savedId);
+        if (book) setSelectedBook(book);
+      }
     } catch {
       // Library might not exist yet
       setBooks([]);
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   }, []);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!initialized) return;
+    if (selectedBook) {
+      localStorage.setItem('tradictionary-selected-book', selectedBook.id);
+    } else {
+      localStorage.removeItem('tradictionary-selected-book');
+    }
+  }, [selectedBook, initialized]);
 
   const upload = useCallback(async (file: File) => {
     setLoading(true);

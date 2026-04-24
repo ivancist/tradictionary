@@ -14,10 +14,14 @@ interface Props {
   isWide?: boolean;
 }
 
+const Skeleton = ({ h }: { h: string }) => (
+  <div className={`w-full bg-surface-800/40 border border-surface-700/30 rounded-xl animate-pulse-soft ${h}`} />
+);
+
 export default function SearchSidebar({ selectedText, sourceLang, targetLang, isWide = false }: Props) {
   const [query, setQuery] = useState('');
   const [displayWord, setDisplayWord] = useState('');
-  const { result, loading, error, search, clear } = useSearch();
+  const { result, error, search, clear } = useSearch();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // When selectedText changes, auto-populate and search
@@ -28,7 +32,7 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
       setDisplayWord(text);
       search({ text, source_lang: sourceLang, target_lang: targetLang });
     }
-  }, [selectedText]);
+  }, [selectedText, sourceLang, targetLang, search]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +52,7 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
   return (
     <div className="flex flex-col h-full">
       {/* Search input */}
-      <form onSubmit={handleSubmit} className="mb-4">
+      <form onSubmit={handleSubmit} className="mb-4 shrink-0">
         <div className="relative">
           <HiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-200/40" />
           <input
@@ -74,28 +78,17 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
 
       {/* Results */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
-        {/* Loading state */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-12 animate-pulse-soft">
-            <div className="w-10 h-10 border-3 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mb-4" />
-            <p className="text-sm text-surface-200/50">Searching...</p>
-          </div>
-        )}
-
-        {/* Error state */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-300">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-300 shrink-0">
             {error}
           </div>
         )}
 
-        {/* Results with word header */}
-        {!loading && result && (
+        {result ? (
           <>
-            {/* Selected word header */}
             {displayWord && (
-              <div className="pb-3 mb-1 border-b border-surface-700/30">
-                <h2 className="text-2xl font-bold text-white tracking-tight leading-tight">
+              <div className="pb-3 mb-1 border-b border-surface-700/30 shrink-0">
+                <h2 className="text-2xl font-bold text-white tracking-tight leading-tight truncate" title={displayWord}>
                   {displayWord}
                 </h2>
               </div>
@@ -105,51 +98,87 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
               <div className="flex gap-4 items-start w-full">
                 {/* Left Column */}
                 <div className="flex-1 flex flex-col gap-4 min-w-0">
-                  {result.audio_url && (
+                  {result.audio_url ? (
                     <AudioPlayer audioUrl={result.audio_url} label={displayWord || query} />
+                  ) : (
+                    <Skeleton h="h-14" />
                   )}
-                  {result.wordreference && (
-                    <WordReferenceCard data={result.wordreference} isWide={isWide} hasAudio={!!result.audio_url} />
+                  
+                  {result.wordCount <= 4 && (
+                    result.wordreference ? (
+                      <WordReferenceCard data={result.wordreference} isWide={isWide} hasAudio={!!result.audio_url} />
+                    ) : (
+                      <Skeleton h="h-64" />
+                    )
                   )}
                 </div>
                 {/* Right Column */}
                 <div className="flex-1 flex flex-col gap-4 min-w-0">
-                  {result.translation && (
+                  {result.translation ? (
                     <TranslationCard data={result.translation} />
+                  ) : (
+                    <Skeleton h="h-32" />
                   )}
-                  {result.definition && (
-                    <DefinitionCard data={result.definition} />
+                  
+                  {result.wordCount <= 4 && (
+                    result.definition ? (
+                      <DefinitionCard data={result.definition} />
+                    ) : (
+                      <Skeleton h="h-40" />
+                    )
                   )}
-                  {result.images.length > 0 && (
-                    <ImageGrid images={result.images} />
+                  
+                  {result.wordCount <= 4 && (
+                    result.images ? (
+                      result.images.length > 0 && <ImageGrid images={result.images} />
+                    ) : (
+                      <Skeleton h="h-40" />
+                    )
                   )}
                 </div>
               </div>
             ) : (
               <div className="flex flex-col gap-4 w-full">
-                {result.audio_url && (
+                {result.audio_url ? (
                   <AudioPlayer audioUrl={result.audio_url} label={displayWord || query} />
+                ) : (
+                  <Skeleton h="h-14" />
                 )}
-                {result.translation && (
+                
+                {result.translation ? (
                   <TranslationCard data={result.translation} />
+                ) : (
+                  <Skeleton h="h-32" />
                 )}
-                {result.definition && (
-                  <DefinitionCard data={result.definition} />
+                
+                {result.wordCount <= 4 && (
+                  result.definition ? (
+                    <DefinitionCard data={result.definition} />
+                  ) : (
+                    <Skeleton h="h-40" />
+                  )
                 )}
-                {result.wordreference && (
-                  <WordReferenceCard data={result.wordreference} hasAudio={!!result.audio_url} />
+                
+                {result.wordCount <= 4 && (
+                  result.wordreference ? (
+                    <WordReferenceCard data={result.wordreference} hasAudio={!!result.audio_url} />
+                  ) : (
+                    <Skeleton h="h-64" />
+                  )
                 )}
-                {result.images.length > 0 && (
-                  <ImageGrid images={result.images} />
+                
+                {result.wordCount <= 4 && (
+                  result.images ? (
+                    result.images.length > 0 && <ImageGrid images={result.images} />
+                  ) : (
+                    <Skeleton h="h-40" />
+                  )
                 )}
               </div>
             )}
           </>
-        )}
-
-        {/* Empty state */}
-        {!loading && !result && !error && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
+        ) : !error && (
+          <div className="flex flex-col items-center justify-center py-16 text-center h-full">
             <div className="w-16 h-16 rounded-full bg-primary-500/10 flex items-center justify-center mb-4">
               <HiOutlineSearch className="w-8 h-8 text-primary-500/40" />
             </div>

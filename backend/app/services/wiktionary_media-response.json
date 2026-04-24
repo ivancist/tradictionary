@@ -1,0 +1,124 @@
+{
+    "revision": "90064532",
+    "tid": "3ddf69f9-315c-11f1-8efe-89465e1527c1",
+    "items": [
+        {
+            "title": "File:En-uk-chair.ogg",
+            "leadImage": false,
+            "section_id": 4,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:en-us-chair.ogg",
+            "leadImage": false,
+            "section_id": 4,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:Chair.png",
+            "leadImage": true,
+            "section_id": 5,
+            "type": "image",
+            "caption": {
+                "html": "A chair (item of furniture).",
+                "text": "A chair (item of furniture)."
+            },
+            "showInGallery": true,
+            "srcset": [
+                {
+                    "src": "//upload.wikimedia.org/wikipedia/commons/7/76/Chair.png?utm_source=en.wiktionary.org&utm_campaign=parser&utm_content=thumbnail_unscaled",
+                    "scale": "1x"
+                }
+            ]
+        },
+        {
+            "title": "File:Schienenstühle,_Laschenstoß.jpg",
+            "leadImage": false,
+            "section_id": 5,
+            "type": "image",
+            "caption": {
+                "html": "Chairs (rail supports on a railway).",
+                "text": "Chairs (rail supports on a railway)."
+            },
+            "showInGallery": true,
+            "srcset": [
+                {
+                    "src": "//upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Schienenst%C3%BChle%2C_Laschensto%C3%9F.jpg/500px-Schienenst%C3%BChle%2C_Laschensto%C3%9F.jpg?utm_source=en.wiktionary.org&utm_campaign=parser&utm_content=thumbnail",
+                    "scale": "1x"
+                },
+                {
+                    "src": "//upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Schienenst%C3%BChle%2C_Laschensto%C3%9F.jpg/1280px-Schienenst%C3%BChle%2C_Laschensto%C3%9F.jpg?utm_source=en.wiktionary.org&utm_campaign=parser&utm_content=thumbnail",
+                    "scale": "2x"
+                }
+            ]
+        },
+        {
+            "title": "File:Fr-chair.ogg",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:LL-Q150_(fra)-Benoît_Prieur-chair.wav",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:LL-Q150_(fra)-DSwissK-chair.wav",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:LL-Q150_(fra)-LoquaxFR-chair.wav",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:LL-Q150_(fra)-Lyokoï-chair.wav",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:LL-Q150_(fra)-Mecanautes-chair.wav",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:LL-Q150_(fra)-Poslovitch-chair.wav",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        },
+        {
+            "title": "File:LL-Q150_(fra)-WikiLucas00-chair.wav",
+            "leadImage": false,
+            "section_id": 16,
+            "type": "audio",
+            "audio_type": "generic",
+            "showInGallery": false
+        }
+    ]
+}

@@ -152,6 +152,7 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
           height: '100%',
           spread: 'none',
           flow: 'paginated',
+          allowScriptedContent: true,
         });
         renditionRef.current = rendition;
         applyTheme(rendition, fontSize);
@@ -196,17 +197,17 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
                   setTimeout(() => {
                     const currentSel = iframeWin.getSelection();
                     const currentText = currentSel?.toString().trim();
-                    
+
                     if (!isHighlighterOnRef.current) {
-                       if (currentText && currentText.length > 0 && currentText !== lastSelectedRef.current) {
-                         lastSelectedRef.current = currentText;
-                         if (onTextSelectRef.current && !isEraserOnRef.current) {
-                           onTextSelectRef.current(currentText);
-                         }
-                       }
-                       return;
+                      if (currentText && currentText.length > 0 && currentText !== lastSelectedRef.current) {
+                        lastSelectedRef.current = currentText;
+                        if (onTextSelectRef.current && !isEraserOnRef.current) {
+                          onTextSelectRef.current(currentText);
+                        }
+                      }
+                      return;
                     }
-                    
+
                     if (currentText && currentText.length > 0 && currentSel && currentSel.rangeCount > 0) {
                       const range = currentSel.getRangeAt(0);
                       try {
@@ -231,9 +232,25 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
                   }, 50);
                 };
 
+                const handleIframeKeyDown = (e: KeyboardEvent) => {
+                  const target = e.target as HTMLElement;
+                  const tag = target?.tagName?.toLowerCase();
+                  const isInput = tag === 'input' || tag === 'textarea';
+
+                  if (target?.isContentEditable) return;
+                  if (isInput) {
+                    const val = (target as HTMLInputElement).value;
+                    if (val !== '') return;
+                  }
+
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); renditionRef.current?.next(); }
+                  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); renditionRef.current?.prev(); }
+                };
+
                 iframeWin.addEventListener('mouseup', handleSelectionEnd);
                 iframeWin.addEventListener('touchend', handleSelectionEnd);
                 iframeWin.addEventListener('pointerup', handleSelectionEnd);
+                iframeWin.addEventListener('keydown', handleIframeKeyDown);
               }
             }
           } catch { }
@@ -324,6 +341,25 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
 
   const goNext = () => renditionRef.current?.next();
   const goPrev = () => renditionRef.current?.prev();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const tag = target?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea';
+
+      if (target?.isContentEditable) return;
+      if (isInput) {
+        const val = (target as HTMLInputElement).value;
+        if (val !== '') return;
+      }
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goNext(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goPrev(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const goToPage = (page: number) => {
     const book = bookRef.current;

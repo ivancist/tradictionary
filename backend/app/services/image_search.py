@@ -93,18 +93,6 @@ async def _wikimedia_images(query: str, limit: int) -> list[dict]:
 
 
 async def search_images(query: str, max_results: int | None = None) -> list[dict]:
-    """Search images: Wiktionary first, padded with Wikimedia Commons."""
+    """Search images: ONLY Wikimedia Commons (used as padding)."""
     max_results = max_results or settings.MAX_IMAGE_RESULTS
-
-    # 1. Wiktionary images (most relevant, dictionary-quality)
-    wkt_images = await _wiktionary_images(query)
-
-    if len(wkt_images) >= max_results:
-        return wkt_images[:max_results]
-
-    # 2. Pad with Wikimedia Commons up to max_results
-    needed = max_results - len(wkt_images)
-    commons_images = await _wikimedia_images(query, needed)
-
-    combined = wkt_images + commons_images
-    return combined[:max_results]
+    return await _wikimedia_images(query, max_results)

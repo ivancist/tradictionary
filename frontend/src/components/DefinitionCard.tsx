@@ -1,12 +1,37 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { DefinitionResponse } from '../types';
-import { HiOutlineBookOpen, HiOutlineSwitchHorizontal } from 'react-icons/hi';
+import { HiOutlineBookOpen, HiOutlineSwitchHorizontal, HiOutlineVolumeUp } from 'react-icons/hi';
 
 interface Props {
   sourceData?: DefinitionResponse;
   targetData?: DefinitionResponse;
   sourceLang: string;
   targetLang: string;
+}
+
+function InlineAudio({ url }: { url: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const play = () => {
+    if (audioRef.current) {
+      audioRef.current.play();
+      setPlaying(true);
+    }
+  };
+
+  return (
+    <>
+      <button 
+        onClick={play} 
+        className={`ml-2 text-primary-400 hover:text-primary-300 transition-colors ${playing ? 'animate-pulse' : ''}`}
+        title="Listen to pronunciation"
+      >
+        <HiOutlineVolumeUp className="w-4 h-4" />
+      </button>
+      <audio ref={audioRef} src={url} onEnded={() => setPlaying(false)} onError={() => setPlaying(false)} />
+    </>
+  );
 }
 
 export default function DefinitionCard({ sourceData, targetData, sourceLang, targetLang }: Props) {
@@ -39,7 +64,7 @@ export default function DefinitionCard({ sourceData, targetData, sourceLang, tar
             title="Switch Language"
           >
             <HiOutlineSwitchHorizontal className="w-3.5 h-3.5" />
-            <span className="uppercase font-medium">{isShowingTarget ? targetLang : (sourceLang === 'auto' ? 'en' : sourceLang)}</span>
+            <span className="uppercase font-medium">{activeData === sourceData ? (sourceLang === 'auto' ? 'en' : sourceLang) : targetLang}</span>
           </button>
         )}
 
@@ -48,8 +73,13 @@ export default function DefinitionCard({ sourceData, targetData, sourceLang, tar
         )}
       </div>
 
-      {activeData.phonetic && (
-        <p className="text-sm text-surface-200/70 mb-3 font-mono">{activeData.phonetic}</p>
+      {(activeData.phonetic || activeData.source_audio_url) && (
+        <div className="flex items-center mb-3">
+          {activeData.phonetic && (
+            <p className="text-sm text-surface-200/70 font-mono">{activeData.phonetic}</p>
+          )}
+          {activeData.source_audio_url && <InlineAudio url={activeData.source_audio_url} />}
+        </div>
       )}
 
       <div className="space-y-3">

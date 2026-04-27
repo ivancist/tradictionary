@@ -15,8 +15,10 @@ export interface DefinitionMeaning {
 export interface DefinitionResponse {
   word: string;
   phonetic: string;
+  source_audio_url?: string;
   meanings: DefinitionMeaning[];
   source: string;
+  images?: ImageResult[];
 }
 
 export interface ImageResult {

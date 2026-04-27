@@ -16,18 +16,22 @@ from app.models.schemas import (
     WordReferenceResponse,
 )
 from app.routers import translate, define, images, tts, epub, pdf, wordreference as wordref_router
-from app.services import ollama_client, dictionary, image_search, wordreference
+from app.services import translator, ollama_client, dictionary, image_search, wordreference, it_wiktionary
+from app.config import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup: check Ollama connectivity
-    healthy = await ollama_client.check_health()
-    if healthy:
-        print("✅ Ollama is reachable")
+    if settings.ENABLE_OLLAMA:
+        healthy = await ollama_client.check_health()
+        if healthy:
+            print("✅ Ollama is reachable")
+        else:
+            print("⚠️  Ollama is not reachable — translation features may fail")
     else:
-        print("⚠️  Ollama is not reachable — translation features may fail")
+        print("ℹ️  Ollama is disabled by configuration")
     yield
     # Shutdown: nothing to clean up
     print("👋 Shutting down Tradictionary")
@@ -68,7 +72,7 @@ async def unified_search(req: SearchRequest):
 
     async def _translate():
         try:
-            result = await ollama_client.translate_text(
+            result = await translator.translate_text(
                 text=req.text,
                 source_lang=req.source_lang,
                 target_lang=req.target_lang,
@@ -76,14 +80,6 @@ async def unified_search(req: SearchRequest):
             return TranslationResponse(**result)
         except Exception as e:
             print(f"[search] Translation error: {e}")
-            return None
-
-    async def _define():
-        try:
-            result = await dictionary.lookup(word=req.text, lang=req.source_lang)
-            return DefinitionResponse(**result)
-        except Exception as e:
-            print(f"[search] Definition error: {e}")
             return None
 
     async def _images():
@@ -94,22 +90,54 @@ async def unified_search(req: SearchRequest):
             print(f"[search] Image search error: {e}")
             return []
 
-    async def _wordreference():
+    async def _get_wordref_and_define():
+        wordref = None
         try:
             result = await wordreference.lookup(
                 word=req.text,
                 source_lang=req.source_lang,
                 target_lang=req.target_lang
             )
-            return WordReferenceResponse(**result) if result else None
+            wordref = WordReferenceResponse(**result) if result else None
         except Exception as e:
             print(f"[search] WordReference error: {e}")
-            return None
 
-    # Execute all in parallel
-    translation, definition, image_results, wordref = await asyncio.gather(
-        _translate(), _define(), _images(), _wordreference()
+        definition = None
+        wiki_images = []
+
+        if req.target_lang == "it":
+            target_word = None
+            if wordref and wordref.categories and wordref.categories[0].entries:
+                target_word = wordref.categories[0].entries[0].target_word
+            
+            if target_word:
+                try:
+                    result = await it_wiktionary.lookup_italian_definition(word=target_word)
+                    if result:
+                        definition = DefinitionResponse(**result)
+                        wiki_images = [ImageResult(**img) for img in result.get("images", [])]
+                except Exception as e:
+                    print(f"[search] it_wiktionary error: {e}")
+        
+        if not definition:
+            try:
+                result = await dictionary.lookup(word=req.text, lang=req.source_lang)
+                definition = DefinitionResponse(**result) if result else None
+            except Exception as e:
+                print(f"[search] Definition error: {e}")
+
+        return wordref, definition, wiki_images
+
+    # Execute translation, images, and the combined wordref+definition tasks in parallel
+    translation, image_results, (wordref, definition, wiki_images) = await asyncio.gather(
+        _translate(), _images(), _get_wordref_and_define()
     )
+    
+    # Append wiktionary images to the main image results
+    if image_results is not None:
+        image_results.extend(wiki_images)
+    else:
+        image_results = wiki_images
 
     # Build TTS URL — use source_lang if specified, otherwise fall back to target_lang
     tts_lang = req.source_lang if req.source_lang != "auto" else req.target_lang
@@ -128,8 +156,10 @@ async def unified_search(req: SearchRequest):
 
 @app.get("/api/health")
 async def health_check():
-    ollama_ok = await ollama_client.check_health()
+    ollama_ok = False
+    if settings.ENABLE_OLLAMA:
+        ollama_ok = await ollama_client.check_health()
     return {
         "status": "ok",
-        "ollama": "connected" if ollama_ok else "disconnected",
+        "ollama": "connected" if ollama_ok else ("disabled" if not settings.ENABLE_OLLAMA else "disconnected"),
     }

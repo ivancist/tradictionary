@@ -41,8 +41,10 @@ class DefinitionMeaning(BaseModel):
 class DefinitionResponse(BaseModel):
     word: str
     phonetic: str = ""
+    source_audio_url: str = ""
     meanings: list[DefinitionMeaning] = []
     source: str = "dictionary_api"
+    images: list['ImageResult'] = []
 
 
 class ImageResult(BaseModel):

@@ -4,6 +4,7 @@ import os
 
 
 class Settings:
+    ENABLE_OLLAMA: bool = os.getenv("ENABLE_OLLAMA", "false").lower() == "true"
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2")
     EPUB_STORAGE_PATH: str = os.getenv("EPUB_STORAGE_PATH", "/app/epubs")

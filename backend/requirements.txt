@@ -9,3 +9,4 @@ ebooklib==0.18
 beautifulsoup4==4.12.3
 aiofiles==24.1.0
 pymupdf==1.25.3
+deep-translator==1.11.4

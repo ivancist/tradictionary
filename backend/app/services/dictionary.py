@@ -4,14 +4,17 @@ import httpx
 from app.config import settings
 
 
-async def lookup(word: str, lang: str = "en") -> dict:
+async def lookup(word: str, lang: str = "en") -> dict | None:
     """Look up a word in the Free Dictionary API, fall back to Ollama if not found."""
     result = await _free_dictionary_lookup(word, lang)
     if result:
         return result
 
-    # Fallback: ask Ollama for a definition
-    return await _ollama_define(word, lang)
+    if settings.ENABLE_OLLAMA:
+        # Fallback: ask Ollama for a definition
+        return await _ollama_define(word, lang)
+    
+    return None
 
 
 async def _free_dictionary_lookup(word: str, lang: str) -> dict | None:
@@ -30,13 +33,16 @@ async def _free_dictionary_lookup(word: str, lang: str) -> dict | None:
 
             entry = data[0]
             phonetic = entry.get("phonetic", "")
+            source_audio_url = ""
 
-            # Try to find a phonetic from phonetics array if main one is empty
-            if not phonetic:
-                for p in entry.get("phonetics", []):
-                    if p.get("text"):
-                        phonetic = p["text"]
-                        break
+            # Try to find a phonetic and audio from phonetics array
+            for p in entry.get("phonetics", []):
+                if not phonetic and p.get("text"):
+                    phonetic = p["text"]
+                if not source_audio_url and p.get("audio"):
+                    source_audio_url = p["audio"]
+                    if source_audio_url.startswith("//"):
+                        source_audio_url = "https:" + source_audio_url
 
             meanings = []
             for meaning in entry.get("meanings", []):
@@ -53,6 +59,7 @@ async def _free_dictionary_lookup(word: str, lang: str) -> dict | None:
             return {
                 "word": word,
                 "phonetic": phonetic,
+                "source_audio_url": source_audio_url,
                 "meanings": meanings,
                 "source": "dictionary_api",
             }

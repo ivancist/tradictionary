@@ -12,7 +12,8 @@ services:
       timeout: 10s
       retries: 20
       start_period: 15s
-    restart: unless-stopped
+    profiles:
+      - "ollama"
 
   backend:
     build:
@@ -28,9 +29,6 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_MODEL=llama3.2
       - EPUB_STORAGE_PATH=/app/epubs
-    depends_on:
-      ollama:
-        condition: service_healthy
     restart: unless-stopped
 
   frontend:

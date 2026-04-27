@@ -8,6 +8,9 @@ export interface PartialResults {
   definitionTgt?: DefinitionResponse;
   wordreference?: WordReferenceResponse;
   images?: ImageResult[];
+  imagesSrc?: ImageResult[];
+  imagesTgt?: ImageResult[];
+  imagesMain?: ImageResult[];
   audio_url?: string;
   wordCount: number;
 }
@@ -36,7 +39,30 @@ export function useSearch() {
     const update = (partial: Partial<PartialResults>) => {
       setResult(prev => {
         if (searchIdRef.current !== id) return prev;
-        return { ...(prev || { wordCount }), ...partial };
+        const baseState = { ...(prev || { wordCount }), ...partial };
+        
+        // Desired Order: [Source Definitions, Target Definitions, Main/Wikimedia Search]
+        const src = baseState.imagesSrc || [];
+        const tgt = baseState.imagesTgt || [];
+        const main = baseState.imagesMain || [];
+        
+        const merged: ImageResult[] = [];
+        const urls = new Set<string>();
+        
+        const addImages = (list: ImageResult[]) => {
+          for (const img of list) {
+            if (!urls.has(img.url)) {
+              merged.push(img);
+              urls.add(img.url);
+            }
+          }
+        };
+        
+        addImages(src);
+        addImages(tgt);
+        addImages(main);
+        
+        return { ...baseState, images: merged.slice(0, 6) };
       });
     };
 
@@ -45,15 +71,15 @@ export function useSearch() {
     update({ audio_url: getTtsUrl(req.text, ttsLang) });
     
     if (wordCount <= 4) {
-      const actualSourceLang = req.source_lang === 'auto' ? 'en' : req.source_lang;
-
       // Parallel non-blocking sources
-      searchDefinition({ word: req.text, lang: actualSourceLang })
-        .then(d => update({ definitionSrc: d }))
-        .catch(e => console.error("Definition (src) fail", e));
+      if (req.source_lang !== 'auto') {
+        searchDefinition({ word: req.text, lang: req.source_lang })
+          .then(d => update({ definitionSrc: d, imagesSrc: d.images }))
+          .catch(e => console.error("Definition (src) fail", e));
+      }
         
       searchImages(req.text)
-        .then(i => update({ images: i }))
+        .then(i => update({ imagesMain: i }))
         .catch(e => console.error("Images fail", e));
 
       // Sequential: WR -> Translation -> Target Definition
@@ -65,31 +91,87 @@ export function useSearch() {
            let topTargetWord = "";
            
            if (w.categories && w.categories.length > 0) {
-              const entries = w.categories.flatMap(c => c.entries).slice(0, 4);
-              if (entries.length > 0) {
-                 topTargetWord = entries[0].target_word;
-                 wr_context = entries.map((e, i) => {
-                   const posTag = e.source_pos
-                     ? `(${e.source_pos}${e.context ? ` - ${e.context}` : ''})`
-                     : e.context ? `(${e.context})` : '';
-                   return `${i + 1}. ${posTag} ${e.source_word} -> ${e.target_word}`;
-                 }).join('\n');
-              }
+              const entries = w.categories.flatMap(c => c.entries).slice(0, 10); // Look deeper
+              const allWrTargetWords = entries.map(e => e.target_word).filter(Boolean);
+              
+              const wordsToTry: string[] = [];
+              // Add all words from WR first
+              allWrTargetWords.forEach(w => {
+                wordsToTry.push(...w.split(','));
+              });
+              
+              searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang, wr_context: wr_context || undefined })
+                .then(t => {
+                  update({ translation: t });
+                  
+                  // Add Google translation as fallback at the end
+                  if (t.translated_text) wordsToTry.push(...t.translated_text.split(','));
+                  
+                  // Filter and clean wordsToTry
+                  const uniqueCandidates = Array.from(new Set(
+                    wordsToTry
+                      .map(w => w.trim().replace(/[⇒⇐]/g, ''))
+                      .filter(w => w && w !== '-' && w.length > 1)
+                  ));
+
+                  // If source lang was auto, fetch definition if we haven't
+                  if (req.source_lang === 'auto' && t.source_lang) {
+                     searchDefinition({ word: req.text, lang: t.source_lang })
+                       .then(d => update({ definitionSrc: d, imagesSrc: d.images }))
+                       .catch();
+                  }
+
+                  // Try candidates until one works
+                  const tryNextDefinition = (index: number) => {
+                    if (index >= uniqueCandidates.length) return;
+                    
+                    const cleanWord = uniqueCandidates[index]
+                      .replace(/^(il|lo|la|i|gli|le|una|uno|un|to|el|los|las|a|an)\s+/i, '');
+                    
+                    searchDefinition({ word: cleanWord, lang: req.target_lang })
+                      .then(d => {
+                        if (d && d.meanings && d.meanings.length > 0) {
+                          update({ definitionTgt: d, imagesTgt: d.images });
+                        } else {
+                          tryNextDefinition(index + 1);
+                        }
+                      })
+                      .catch(() => tryNextDefinition(index + 1));
+                  };
+                  
+                  tryNextDefinition(0);
+                })
+                .catch();
+           } else {
+              // No WR results, just use translator
+              searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang })
+                .then(t => {
+                   update({ translation: t });
+                   if (req.source_lang === 'auto' && t.source_lang) {
+                      searchDefinition({ word: req.text, lang: t.source_lang })
+                        .then(d => update({ definitionSrc: d, imagesSrc: d.images }))
+                        .catch();
+                   }
+                   if (t.translated_text) {
+                      const wordsToTry = t.translated_text.split(',').map(w => w.trim().replace(/[⇒⇐]/g, '')).filter(w => w && w !== '-' && w.length > 1);
+                      const tryNext = (idx: number) => {
+                        if (idx >= wordsToTry.length) return;
+                        const clean = wordsToTry[idx].replace(/^(il|lo|la|i|gli|le|una|uno|un|to|el|los|las|a|an)\s+/i, '');
+                        searchDefinition({ word: clean, lang: req.target_lang })
+                          .then(d => {
+                            if (d && d.meanings && d.meanings.length > 0) {
+                              update({ definitionTgt: d, imagesTgt: d.images });
+                            } else {
+                              tryNext(idx + 1);
+                            }
+                          })
+                          .catch(() => tryNext(idx + 1));
+                      };
+                      tryNext(0);
+                   }
+                })
+                .catch();
            }
-           
-           searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang, wr_context: wr_context || undefined })
-             .then(t => {
-               update({ translation: t });
-               
-               const wordForDef = topTargetWord || t.translated_text;
-               if (wordForDef) {
-                 const cleanWord = wordForDef.split(',')[0].trim().replace(/^(il|lo|la|i|gli|le|una|uno|un|to|el|los|las)\s+/i, '');
-                 searchDefinition({ word: cleanWord, lang: req.target_lang })
-                   .then(d => update({ definitionTgt: d }))
-                   .catch();
-               }
-             })
-             .catch();
         })
         .catch(e => {
            console.error("WordReference fail", e);
@@ -97,10 +179,29 @@ export function useSearch() {
            searchTranslation({ text: req.text, source_lang: req.source_lang, target_lang: req.target_lang })
              .then(t => {
                update({ translation: t });
+               
+               if (req.source_lang === 'auto' && t.source_lang) {
+                  searchDefinition({ word: req.text, lang: t.source_lang })
+                    .then(d => update({ definitionSrc: d, imagesSrc: d.images }))
+                    .catch();
+               }
+
                if (t.translated_text) {
-                 searchDefinition({ word: t.translated_text, lang: req.target_lang })
-                   .then(d => update({ definitionTgt: d }))
-                   .catch();
+                 const wordsToTry = t.translated_text.split(',');
+                 const tryNext = (idx: number) => {
+                   if (idx >= wordsToTry.length) return;
+                   const clean = wordsToTry[idx].trim().replace(/[⇒⇐]/g, '').replace(/^(il|lo|la|i|gli|le|una|uno|un|to|el|los|las|a|an)\s+/i, '');
+                   searchDefinition({ word: clean, lang: req.target_lang })
+                    .then(d => {
+                      if (d && d.meanings && d.meanings.length > 0) {
+                        update({ definitionTgt: d, imagesTgt: d.images });
+                      } else {
+                        tryNext(idx + 1);
+                      }
+                    })
+                    .catch(() => tryNext(idx + 1));
+                 };
+                 tryNext(0);
                }
              })
              .catch();

@@ -137,6 +137,7 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const [loading, setLoading] = useState(true);
+  const [navigating, setNavigating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -514,11 +515,69 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const goToPage = (page: number) => {
+  const goToPage = async (page: number) => {
     const book = bookRef.current;
     const rendition = renditionRef.current;
     if (!book || !rendition || !book.locations) return;
-    navigateToPage(page, book, rendition);
+
+    const total = (book.locations as any).length();
+    if (!total) return;
+    const clamped = Math.max(1, Math.min(page, total));
+
+    // If the target is close to the current page, a simple display is enough.
+    // For distant jumps epubjs may need to load new spine sections which can
+    // take multiple attempts. Show a loading overlay and use the same settle-
+    // loop the initial-load code uses.
+    const distance = Math.abs(clamped - currentPage);
+    if (distance <= 3) {
+      navigateToPage(clamped, book, rendition);
+      return;
+    }
+
+    setNavigating(true);
+
+    const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+    const waitRelocated = () => new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        (rendition as any).off('relocated', finish);
+        resolve();
+      };
+      (rendition as any).on('relocated', finish);
+      setTimeout(finish, 500);
+    });
+
+    const pct = pageToPercentage(clamped, total);
+    const cfi = book.locations.cfiFromPercentage(pct);
+
+    const doJump = async () => {
+      const settled = waitRelocated();
+      await rendition.display(cfi);
+      await settled;
+    };
+
+    try {
+      await doJump();
+      let stable = 0;
+      for (let i = 0; i < 30 && stable < 3; i++) {
+        await sleep(120);
+        let curPage = 0;
+        try {
+          const curCfi = (rendition as any).currentLocation()?.start?.cfi;
+          if (curCfi) curPage = percentageToPage(book.locations.percentageFromCfi(curCfi), total);
+        } catch { }
+        if (curPage === clamped) {
+          stable++;
+        } else {
+          stable = 0;
+          await doJump();
+        }
+      }
+    } finally {
+      setNavigating(false);
+    }
   };
 
   const handleGoTo = (e: React.FormEvent) => {
@@ -541,10 +600,10 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 relative">
-        {loading && (
+        {(loading || navigating) && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-800 rounded-xl">
             <div className="w-8 h-8 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
-            <p className="text-xs text-surface-200/50">Loading book...</p>
+            <p className="text-xs text-surface-200/50">{navigating ? 'Navigating…' : 'Loading book...'}</p>
           </div>
         )}
 
@@ -557,7 +616,7 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
       {/* Always rendered so its height is reserved during loading: mounting it
           only on reveal would shrink the reader and force epubjs to
           re-paginate, shifting the restored page (visible flicker). */}
-      <div className={`flex items-center justify-between mt-3 px-2 ${loading ? 'invisible' : ''}`}>
+      <div className={`flex items-center justify-between mt-3 px-2 ${loading || navigating ? 'invisible' : ''}`}>
           <div className="flex-1 min-w-0 mr-3 hidden sm:block">
             {currentChapter && (
               <p className="text-xs text-surface-200/40 truncate" title={currentChapter}>

@@ -1,0 +1,522 @@
+/* Looking for https://www.treccani.it/vocabolario/ricerca/$$WORD$$/
+
+Important results: props.pageProps.data.matches
+
+query_matches = result_json["props"]["pageProps"]["data"]["matches"]
+        word_def_urls = [
+            TreccaniVocabularyPage(
+                title=match["title"], url=f"{self.base_url}{match['url']}"
+            )
+            for match in query_matches
+            if word in match["query"]
+            and match["section"] == "vocabolario"
+            and match["description"] == "Vocabolario on line"
+        ]
+
+GET request to https://www.treccani.it/vocabolario/ricerca/ancora/
+contains the script below:
+
+<script id="__NEXT_DATA__" type="application/json"> */
+{
+    "props": {
+        "pageProps": {
+            "data": {
+                "look_in": [
+                    {
+                        "index": 1,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora",
+                        "section": "enciclopedia",
+                        "label": "enciclopedia",
+                        "selected": 0
+                    },
+                    {
+                        "index": 2,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Dizionario_Biografico",
+                        "section": "enciclopedia",
+                        "label": "biografico",
+                        "opera": "Dizionario_Biografico",
+                        "selected": 0
+                    },
+                    {
+                        "index": 3,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/vocabolario/ricerca/ancora/",
+                        "section": "vocabolario",
+                        "label": "vocabolario",
+                        "selected": 1
+                    },
+                    {
+                        "index": 4,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/vocabolario/ricerca/ancora/Sinonimi_e_Contrari",
+                        "section": "vocabolario",
+                        "label": "sinonimi",
+                        "opera": "Sinonimi_e_Contrari",
+                        "selected": 0
+                    },
+                    {
+                        "index": 6,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Agenda",
+                        "section": "enciclopedia",
+                        "label": "agenda",
+                        "opera": "Agenda",
+                        "selected": 0
+                    },
+                    {
+                        "index": 7,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Atlante",
+                        "section": "enciclopedia",
+                        "label": "atlante",
+                        "opera": "Atlante",
+                        "selected": 0
+                    },
+                    {
+                        "index": 8,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Diritto",
+                        "section": "enciclopedia",
+                        "label": "diritto",
+                        "opera": "Diritto",
+                        "selected": 0
+                    },
+                    {
+                        "index": 9,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Il_Chiasmo",
+                        "section": "enciclopedia",
+                        "label": "il chiasmo",
+                        "opera": "Il_Chiasmo",
+                        "selected": 0
+                    },
+                    {
+                        "index": 10,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Il_Faro",
+                        "section": "enciclopedia",
+                        "label": "il faro",
+                        "opera": "Il_Faro",
+                        "selected": 0
+                    },
+                    {
+                        "index": 11,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Le_parole_valgono",
+                        "section": "enciclopedia",
+                        "label": "Le parole valgono",
+                        "opera": "Le_parole_valgono",
+                        "selected": 0
+                    },
+                    {
+                        "index": 12,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/Lingua_italiana",
+                        "section": "enciclopedia",
+                        "label": "lingua italiana",
+                        "opera": "Lingua_italiana",
+                        "selected": 0
+                    },
+                    {
+                        "index": 13,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora/WebTv",
+                        "section": "enciclopedia",
+                        "label": "webtv",
+                        "opera": "WebTv",
+                        "selected": 0
+                    }
+                ],
+                "matches": [
+                    {
+                        "last_update": "1650306474",
+                        "query": "ancora_res-d49bd28d-000d-11de-9d89-0016357eee51",
+                        "categories": [
+                            {
+                                "cat3_label": "industria aeronautica",
+                                "cat2": "industria",
+                                "url": "https://www.treccani.it/enciclopedia/tecnologia_e_scienze_applicate/industria/industria_aeronautica",
+                                "cat3": "industria_aeronautica",
+                                "cat1": "tecnologia_e_scienze_applicate",
+                                "section": "enciclopedia",
+                                "label": "industria aeronautica"
+                            }
+                        ],
+                        "section": "vocabolario",
+                        "description": "Vocabolario on line",
+                        "opera": "",
+                        "url": "/vocabolario/ancora_res-d49bd28d-000d-11de-9d89-0016357eee51",
+                        "abstract": "\u003cb\u003eancora\u003c/b\u003e \n\n\u003cb\u003eancóra\u003c/b\u003e (tronc. \u003cb\u003eancór\u003c/b\u003e) avv. [prob. dal fr. ant. encore, che è il lat. hinc ad hōram «di là fino a quest’ora»]. – 1. a. Anche ora, anche allora; indica la continuità nella durata di un’azione, di [...]   per indicare aggiunta: a. un quarto d’ora e ho finito. 2. Come cong., col sign. di anche, persino, spec. per rafforzare un comparativo: \u003cb\u003eancor\u003c/b\u003e più, \u003cb\u003eancor\u003c/b\u003e meglio; grida a. più forte (oppure, ma soltanto nell’uso letter. e ormai raro, in locuzioni come ",
+                        "treccani_id": "d49bd28d-000d-11de-9d89-0016357eee51",
+                        "title": "ancóra",
+                        "annotation": "wiki_d49bd28d-000d-11de-9d89-0016357eee51",
+                        "year": "2014"
+                    },
+                    {
+                        "last_update": "1650306474",
+                        "query": "ancora",
+                        "categories": [],
+                        "section": "vocabolario",
+                        "description": "Vocabolario on line",
+                        "opera": "",
+                        "url": "/vocabolario/ancora",
+                        "abstract": "\u003cb\u003eancora\u003c/b\u003e \n\n\u003cb\u003eàncora\u003c/b\u003e s. f. [lat. \u003cb\u003eancŏra\u003c/b\u003e, gr. ἄγκυρα]. – 1. a. Organo di ferro o di acciaio destinato a dare solido attracco agli ormeggi di un galleggiante (imbarcazione, nave, idrovolante) facendo presa sul [...]  ’a., fare in modo che prenda bene sul fondo; girare sull’a., girare la nave con le macchine, facendo forza sull’\u003cb\u003eancora\u003c/b\u003e; levare, salpare, e meno com. trarre l’a., partire, andarsene (anche con usi fig.). Soltanto fig., a. di salvezza, rimedio estremo ",
+                        "treccani_id": "d4b61152-000d-11de-9d89-0016357eee51",
+                        "title": "àncora",
+                        "annotation": "wiki_d4b61152-000d-11de-9d89-0016357eee51",
+                        "year": "2014"
+                    },
+                    {
+                        "last_update": "1746162820",
+                        "query": "segno",
+                        "categories": [
+                            {
+                                "cat3_label": "grammatica",
+                                "cat2": "lingua",
+                                "url": "https://www.treccani.it/enciclopedia/arte_lingua_e_letteratura/lingua/grammatica",
+                                "cat3": "grammatica",
+                                "cat1": "arte_lingua_e_letteratura",
+                                "section": "enciclopedia",
+                                "label": "grammatica"
+                            },
+                            {
+                                "cat3_label": "mestieri e professioni",
+                                "cat2": "lingua",
+                                "url": "https://www.treccani.it/enciclopedia/arte_lingua_e_letteratura/lingua/mestieri_e_professioni",
+                                "cat3": "mestieri_e_professioni",
+                                "cat1": "arte_lingua_e_letteratura",
+                                "section": "enciclopedia",
+                                "label": "mestieri e professioni"
+                            },
+                            {
+                                "cat3_label": "abbigliamento religioso",
+                                "cat2": "religioni",
+                                "url": "https://www.treccani.it/enciclopedia/scienze_sociali_e_storia/religioni/abbigliamento_religioso",
+                                "cat3": "abbigliamento_religioso",
+                                "cat1": "scienze_sociali_e_storia",
+                                "section": "enciclopedia",
+                                "label": "abbigliamento religioso"
+                            },
+                            {
+                                "cat3_label": "lessicologia e lessicografia",
+                                "cat2": "lingua",
+                                "url": "https://www.treccani.it/enciclopedia/arte_lingua_e_letteratura/lingua/lessicologia_e_lessicografia",
+                                "cat3": "lessicologia_e_lessicografia",
+                                "cat1": "arte_lingua_e_letteratura",
+                                "section": "enciclopedia",
+                                "label": "lessicologia e lessicografia"
+                            },
+                            {
+                                "cat3_label": "divinita ed esseri extraumani",
+                                "cat2": "religioni",
+                                "url": "https://www.treccani.it/enciclopedia/scienze_sociali_e_storia/religioni/divinita_ed_esseri_extraumani",
+                                "cat3": "divinita_ed_esseri_extraumani",
+                                "cat1": "scienze_sociali_e_storia",
+                                "section": "enciclopedia",
+                                "label": "divinita ed esseri extraumani"
+                            }
+                        ],
+                        "section": "vocabolario",
+                        "description": "Vocabolario on line",
+                        "opera": "",
+                        "url": "/vocabolario/segno",
+                        "abstract": "ségno s. m. [lat. sĭgnum «segno visibile o sensibile di qualche cosa; insegna militare; immagine scolpita o dipinta; astro», forse affine a secare «tagliare, incidere»]. – 1. a. Qualsiasi fatto, manifestazione, [...]  di un corpo su un altro: i s. della mareggiata erano \u003cb\u003eancora\u003c/b\u003e visibili sulla costa; mentre cammini i s. dei tuoi passi   colore su uno sfondo: i s. scuri lasciati dall’incendio erano \u003cb\u003eancora\u003c/b\u003e visibili sulla collina; che son li s. bui Di questo corpo  ",
+                        "treccani_id": "6956661c-0035-11de-9d89-0016357eee51",
+                        "title": "ségno",
+                        "annotation": "wiki_6956661c-0035-11de-9d89-0016357eee51",
+                        "year": "2014"
+                    },
+                    {
+                        "last_update": "1658293633",
+                        "query": "giovane_res-e7355be4-dff4-11eb-94e0-00271042e8d9",
+                        "categories": [],
+                        "section": "vocabolario",
+                        "description": "Thesaurus (2018)",
+                        "opera": "",
+                        "url": "/vocabolario/giovane_res-e7355be4-dff4-11eb-94e0-00271042e8d9",
+                        "abstract": "giovane \n\n\n1. MAPPA È GIOVANE chi sta vivendo l’età della giovinezza, cioè quella compresa tra l’adolescenza e la maturità (due giovani sposi), 2. ma l’aggettivo si usa spesso anche per alludere alla freschezza, [...]   (un vinello g.) o ad altre cose, anche astratte, costituite o formate da poco tempo (un’istituzione, una scienza, un’industria \u003cb\u003eancora\u003c/b\u003e g.; popolo, nazione g.). 6. MAPPA Quando è usata in funzione di sostantivo, la parola indica una persona che è nell ",
+                        "treccani_id": "e7355be4-dff4-11eb-94e0-00271042e8d9",
+                        "title": "giovane",
+                        "annotation": "wiki_e7355be4-dff4-11eb-94e0-00271042e8d9",
+                        "year": "2018"
+                    },
+                    {
+                        "last_update": "1658218031",
+                        "query": "ricordare_res-add51a2b-e3b2-11eb-94e0-00271042e8d9",
+                        "categories": [],
+                        "section": "vocabolario",
+                        "description": "Thesaurus (2018)",
+                        "opera": "",
+                        "url": "/vocabolario/ricordare_res-add51a2b-e3b2-11eb-94e0-00271042e8d9",
+                        "abstract": "ricordare \n\n\n1. MAPPA RICORDARE significa far tornare nella memoria (cerca di r. almeno l’anno; non riesco a r. come si chiama) o avere presente nella memoria (ricordo benissimo il nostro incontro; non [...]  , sai! Tu me l’hai appioppata, birbaccione, quando partisti da Roma. Cara figliuola, quanto bene ti voleva... Ti pensa \u003cb\u003eancora\u003c/b\u003e, sai? mi parla \u003cb\u003eancora\u003c/b\u003e di te, qualche volta. Andrò a trovarla questa sera stessa e le dirò come t’ho riveduto, poveretto... È ",
+                        "treccani_id": "add51a2b-e3b2-11eb-94e0-00271042e8d9",
+                        "title": "ricordare",
+                        "annotation": "wiki_add51a2b-e3b2-11eb-94e0-00271042e8d9",
+                        "year": "2018"
+                    },
+                    {
+                        "last_update": "1654482241",
+                        "query": "neo-identita-alias_(Neologismi)",
+                        "categories": [],
+                        "section": "vocabolario",
+                        "description": "Neologismi (2022)",
+                        "opera": "Neologismi",
+                        "url": "/vocabolario/neo-identita-alias_(Neologismi)",
+                        "abstract": "identità alias (Identità Alias) loc. s.le f. L'identità di genere, divergente da quella associata al genere sessuale di nascita, in quanto viene riconosciuta e registrata in documenti burocratici e amministrativi [...]  università, ma il tema dell’inclusione e della non discriminazione si fa largo anche sul posto di lavoro. La novità, non \u003cb\u003eancora\u003c/b\u003e ufficiale, è che nella nuova bozza del contratto degli statali ha fatto la su comparsa l’identità alias, ovvero un profilo ",
+                        "treccani_id": "44f29775-1c9a-4331-ab65-1b6f1cc289fc",
+                        "title": "Identità alias",
+                        "annotation": "wiki_44f29775-1c9a-4331-ab65-1b6f1cc289fc",
+                        "year": "2022"
+                    },
+                    {
+                        "last_update": "1758952099",
+                        "query": "ipotesi",
+                        "categories": [
+                            {
+                                "cat3_label": "grammatica",
+                                "cat2": "lingua",
+                                "url": "https://www.treccani.it/enciclopedia/arte_lingua_e_letteratura/lingua/grammatica",
+                                "cat3": "grammatica",
+                                "cat1": "arte_lingua_e_letteratura",
+                                "section": "enciclopedia",
+                                "label": "grammatica"
+                            },
+                            {
+                                "cat3_label": "mestieri e professioni",
+                                "cat2": "lingua",
+                                "url": "https://www.treccani.it/enciclopedia/arte_lingua_e_letteratura/lingua/mestieri_e_professioni",
+                                "cat3": "mestieri_e_professioni",
+                                "cat1": "arte_lingua_e_letteratura",
+                                "section": "enciclopedia",
+                                "label": "mestieri e professioni"
+                            },
+                            {
+                                "cat3_label": "abbigliamento religioso",
+                                "cat2": "religioni",
+                                "url": "https://www.treccani.it/enciclopedia/scienze_sociali_e_storia/religioni/abbigliamento_religioso",
+                                "cat3": "abbigliamento_religioso",
+                                "cat1": "scienze_sociali_e_storia",
+                                "section": "enciclopedia",
+                                "label": "abbigliamento religioso"
+                            },
+                            {
+                                "cat3_label": "lessicologia e lessicografia",
+                                "cat2": "lingua",
+                                "url": "https://www.treccani.it/enciclopedia/arte_lingua_e_letteratura/lingua/lessicologia_e_lessicografia",
+                                "cat3": "lessicologia_e_lessicografia",
+                                "cat1": "arte_lingua_e_letteratura",
+                                "section": "enciclopedia",
+                                "label": "lessicologia e lessicografia"
+                            },
+                            {
+                                "cat3_label": "divinita ed esseri extraumani",
+                                "cat2": "religioni",
+                                "url": "https://www.treccani.it/enciclopedia/scienze_sociali_e_storia/religioni/divinita_ed_esseri_extraumani",
+                                "cat3": "divinita_ed_esseri_extraumani",
+                                "cat1": "scienze_sociali_e_storia",
+                                "section": "enciclopedia",
+                                "label": "divinita ed esseri extraumani"
+                            }
+                        ],
+                        "section": "vocabolario",
+                        "description": "Vocabolario on line",
+                        "opera": "",
+                        "url": "/vocabolario/ipotesi",
+                        "abstract": "ipòteṡi s. f. [dal gr. ὑπόϑεσις, affine a ὑποτίϑημι «porre sotto»; il termine lat. corrispondente è suppositio, da cui l’ital. supposizione]. – 1. a. Supposizione di fatti (o situazioni, sviluppi di un’azione [...]  ; è un’i. sufficientemente fondata, un’i. attraente, seducente, o improbabile, assurda; la tua i. è troppo semplicistica; siamo \u003cb\u003eancora\u003c/b\u003e nel campo delle i., lontani cioè dalla verità; dico così, tanto per fare un’ipotesi. In senso più strettamente ",
+                        "treccani_id": "0aca463a-0022-11de-9d89-0016357eee51",
+                        "title": "ipòteṡi",
+                        "annotation": "wiki_0aca463a-0022-11de-9d89-0016357eee51",
+                        "year": "2014"
+                    },
+                    {
+                        "last_update": "1701132660",
+                        "query": "donna",
+                        "categories": [],
+                        "section": "vocabolario",
+                        "description": "Vocabolario on line",
+                        "opera": "",
+                        "url": "/vocabolario/donna",
+                        "abstract": "dònna s. f. [lat. dŏmĭna «signora, padrona», lat. volg. dŏmna]. – 1. a. Nella specie umana, l’individuo di sesso femminile, soprattutto dal momento in cui abbia raggiunto la maturità anatomica e quindi [...]  ); il carattere, la sensibilità, l’intuito della d., ecc., dove il sing. donna ha in genere valore collettivo, ch’è \u003cb\u003eancora\u003c/b\u003e più marcato quando donna viene assunto a rappresentare l’intera componente femminile della società: i diritti della d.; l ",
+                        "treccani_id": "937c909f-0019-11de-9d89-0016357eee51",
+                        "title": "dònna",
+                        "annotation": "wiki_937c909f-0019-11de-9d89-0016357eee51",
+                        "year": "2008"
+                    },
+                    {
+                        "last_update": "1703070888",
+                        "query": "neo-cop_(Neologismi)",
+                        "categories": [],
+                        "section": "vocabolario",
+                        "description": "Neologismi (2023)",
+                        "opera": "Neologismi",
+                        "url": "/vocabolario/neo-cop_(Neologismi)",
+                        "abstract": "COP (Cop) Acronimo di Conference of Parties (‘Conferenza delle parti [che hanno sottoscritto una convenzione]’), che indica la riunione annuale dei Paesi ratificatori della Convenzione quadro delle Nazioni [...]   combustibili fossili, all’effetto, il riscaldamento globale. Può sembrare strano ma, in 30 anni di negoziati, non si era \u003cb\u003eancora\u003c/b\u003e riusciti a mettere nero su bianco che non solo occorre tagliare le emissioni climalteranti, ma che bisogna anche spingere ",
+                        "treccani_id": "ec9fdb88-14f2-4c57-880e-fe24459fae79",
+                        "title": "COP",
+                        "annotation": "wiki_ec9fdb88-14f2-4c57-880e-fe24459fae79",
+                        "year": "2023"
+                    },
+                    {
+                        "last_update": "1708510579",
+                        "query": "neo-negazionismo-climatico_(Neologismi)",
+                        "categories": [],
+                        "section": "vocabolario",
+                        "description": "Neologismi (2024)",
+                        "opera": "Neologismi",
+                        "url": "/vocabolario/neo-negazionismo-climatico_(Neologismi)",
+                        "abstract": "negazionismo climatico loc. s.le m. L’atteggiamento di negazione del cambiamento climatico prodotto dal riscaldamento globale, per ragioni ideologiche, politiche, d’interesse o per paura. ◆ Non sappiamo [...]  it, 24 settembre 2021, Opinioni) • Eppure, c’è chi \u003cb\u003eancora\u003c/b\u003e fa negazionismo climatico. Nel panorama anglosassone a fare da cassa di Italia a luglio fa caldo, ha sempre fatto caldo, e farà \u003cb\u003eancora\u003c/b\u003e caldo. Grazie a Dio». La città aveva raggiunto un picco di ",
+                        "treccani_id": "c28b03c3-7ddd-426d-a56a-2302f65681fd",
+                        "title": "Negazionismo climatico",
+                        "annotation": "wiki_c28b03c3-7ddd-426d-a56a-2302f65681fd",
+                        "year": "2024"
+                    }
+                ],
+                "categories": [
+                    {
+                        "count": 3286,
+                        "query": "ancora",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora",
+                        "section": "enciclopedia",
+                        "label": "Tutti i risultati",
+                        "selected": 1,
+                        "catid": 0
+                    },
+                    {
+                        "count": 191,
+                        "query": "ancora_(industria)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(industria)",
+                        "section": "enciclopedia",
+                        "label": "industria",
+                        "selected": 0,
+                        "catid": 1953428886
+                    },
+                    {
+                        "count": 167,
+                        "query": "ancora_(medicina)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(medicina)",
+                        "section": "enciclopedia",
+                        "label": "medicina",
+                        "selected": 0,
+                        "catid": 1599860372
+                    },
+                    {
+                        "count": 135,
+                        "query": "ancora_(arti_visive)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(arti_visive)",
+                        "section": "enciclopedia",
+                        "label": "arti visive",
+                        "selected": 0,
+                        "catid": 2357154364
+                    },
+                    {
+                        "count": 127,
+                        "query": "ancora_(storia)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(storia)",
+                        "section": "enciclopedia",
+                        "label": "storia",
+                        "selected": 0,
+                        "catid": 2325496456
+                    },
+                    {
+                        "count": 125,
+                        "query": "ancora_(religioni)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(religioni)",
+                        "section": "enciclopedia",
+                        "label": "religioni",
+                        "selected": 0,
+                        "catid": 572336445
+                    },
+                    {
+                        "count": 118,
+                        "query": "ancora_(diritto)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(diritto)",
+                        "section": "enciclopedia",
+                        "label": "diritto",
+                        "selected": 0,
+                        "catid": 3455378059
+                    },
+                    {
+                        "count": 106,
+                        "query": "ancora_(architettura_e_urbanistica)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(architettura_e_urbanistica)",
+                        "section": "enciclopedia",
+                        "label": "architettura e urbanistica",
+                        "selected": 0,
+                        "catid": 1476306007
+                    },
+                    {
+                        "count": 96,
+                        "query": "ancora_(militaria)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(militaria)",
+                        "section": "enciclopedia",
+                        "label": "militaria",
+                        "selected": 0,
+                        "catid": 2975554233
+                    },
+                    {
+                        "count": 95,
+                        "query": "ancora_(zoologia)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(zoologia)",
+                        "section": "enciclopedia",
+                        "label": "zoologia",
+                        "selected": 0,
+                        "catid": 544993838
+                    },
+                    {
+                        "count": 85,
+                        "query": "ancora_(fisica)",
+                        "url": "https://www.treccani.it/enciclopedia/ricerca/ancora_(fisica)",
+                        "section": "enciclopedia",
+                        "label": "fisica",
+                        "selected": 0,
+                        "catid": 2980368047
+                    }
+                ],
+                "elapsed_time": 0.241819,
+                "total_grouped": 3286,
+                "printable_query": "ancora",
+                "totalfound": 3286,
+                "original_query": "ancora",
+                "enc_matches": [
+                    {
+                        "section": "enciclopedia",
+                        "opera": "",
+                        "url": "https://www.treccani.it/enciclopedia/ancora",
+                        "query": "ancora",
+                        "description": "Enciclopedie on line",
+                        "title": "ancora",
+                        "abstract": "Trasporti\nOrgano destinato a dare solido attacco agli ormeggi di un galleggiante (imbarcazione, nave, idrovolante) facendo presa sul fondo, o di un aerostato facendo presa sulle scabrosità del terreno, su alberi ecc.\nNei poemi omerici l’a. è ..."
+                    },
+                    {
+                        "section": "enciclopedia",
+                        "opera": "Dizionario-di-Economia-e-Finanza",
+                        "url": "https://www.treccani.it/enciclopedia/ancora_(Dizionario-di-Economia-e-Finanza)",
+                        "query": "ancora_(Dizionario-di-Economia-e-Finanza)",
+                        "description": "Dizionario di Economia e Finanza",
+                        "title": "ancora",
+                        "abstract": "ancora \n\nValuta utilizzata come riferimento in un regime di cambi fissi, a cui una o più monete sono ancorate (pegged). L’ancoraggio della valuta di un Paese nei confronti di un’altra estera permette di stabilizzare il tasso di cambio e favorisce ..."
+                    }
+                ],
+                "pagination": {
+                    "currentPage": 1
+                }
+            }
+        },
+        "__N_SSP": true
+    },
+    "page": "/vocabolario/ricerca/[searchTerm]",
+    "query": {
+        "searchTerm": "ancora"
+    },
+    "buildId": "naB8_7Lsu1Kprn_qJKin5",
+    "isFallback": false,
+    "isExperimentalCompile": false,
+    "dynamicIds": [
+        66954
+    ],
+    "gssp": true,
+    "scriptLoader": []
+}
+/*    </script>*/

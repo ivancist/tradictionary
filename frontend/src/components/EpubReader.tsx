@@ -15,6 +15,7 @@ interface Props {
 
 const PAGES_KEY = 'tradictionary-pages';
 const HIGHLIGHTS_KEY = 'tradictionary-highlights';
+const CHECKPOINT_KEY = 'tradictionary-reading-checkpoint';
 
 interface Highlight {
   id: string;
@@ -82,6 +83,43 @@ function savePage(bookId: string, page: number) {
   } catch { }
 }
 
+// Exact screen-start CFI saved on every page turn. Recorded against the
+// settled layout, it reproduces the exact screen on reload — unlike the
+// page-number → percentage → CFI conversion, which lands mid-screen.
+const PAGE_CFI_KEY = 'tradictionary-page-cfi';
+
+function savePageCfiLS(bookId: string, cfi: string) {
+  try {
+    const raw = localStorage.getItem(PAGE_CFI_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    data[bookId] = cfi;
+    localStorage.setItem(PAGE_CFI_KEY, JSON.stringify(data));
+  } catch { }
+}
+
+function loadPageCfiLS(bookId: string): string | null {
+  try {
+    const raw = localStorage.getItem(PAGE_CFI_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return typeof data[bookId] === 'string' ? data[bookId] : null;
+  } catch { return null; }
+}
+
+// Locations (1024-char blocks) depend only on the book's content, never on
+// layout, so they can be cached forever. Generating them parses the whole
+// book and takes seconds — loading the cache is instant. One key per book
+// to avoid rewriting a single giant blob.
+const LOCATIONS_KEY_PREFIX = 'tradictionary-locations:';
+
+function saveLocationsLS(bookId: string, json: string) {
+  try { localStorage.setItem(LOCATIONS_KEY_PREFIX + bookId, json); } catch { }
+}
+
+function loadLocationsLS(bookId: string): string | null {
+  try { return localStorage.getItem(LOCATIONS_KEY_PREFIX + bookId); } catch { return null; }
+}
+
 // ── Shared page<->percentage conversion ────────────────
 
 function pageToPercentage(page: number, total: number): number {
@@ -116,11 +154,11 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
   isEraserOnRef.current = isEraserOn;
   const selectionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSelectedRef = useRef('');
-  const readyToSaveRef = useRef(false);
 
   // ── Navigate to page (shared logic) ──────────────────
   function navigateToPage(page: number, book: Book, rendition: Rendition) {
     const total = (book.locations as any).length();
+    if (!total) return; // locations still generating (first open of this book)
     const clamped = Math.max(1, Math.min(page, total));
     const pct = pageToPercentage(clamped, total);
     const cfi = book.locations.cfiFromPercentage(pct);
@@ -131,7 +169,7 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
   useEffect(() => {
     if (!containerRef.current) return;
     let cancelled = false;
-    readyToSaveRef.current = false;
+    let allowSavePage = false;
 
     async function loadBook() {
       setLoading(true);
@@ -156,21 +194,44 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
         });
         renditionRef.current = rendition;
         applyTheme(rendition, fontSize);
+        registerReadingCursorHook(rendition, bookId);
 
         await book.ready;
-        await book.locations.generate(1024);
-        const total = (book.locations as any).length();
-        setTotalPages(total);
+
+        // Load cached locations if we have them; otherwise they are generated
+        // in the background after the book is already on screen.
+        let totalLocs = 0;
+        let lastCfi: string | null = null;
+        let landedPage = 0; // footer page, updated by 'relocated'
+        let anchorCfi: string | null = null; // reading position the settle-hold protects
+        let anchorDisplayPending = false; // next relocated comes from our own re-anchor
+        const cachedLocs = loadLocationsLS(bookId);
+        if (cachedLocs) {
+          try {
+            (book.locations as any).load(cachedLocs);
+            totalLocs = (book.locations as any).length();
+          } catch { totalLocs = 0; }
+        }
+        setTotalPages(totalLocs);
 
         // ── Track page changes ──────────────────────
         rendition.on('relocated', (location: any) => {
           if (cancelled) return;
-          if (location?.start?.cfi && book.locations) {
-            const pct = book.locations.percentageFromCfi(location.start.cfi);
-            const page = percentageToPage(pct, total);
-            setCurrentPage(page);
-            if (readyToSaveRef.current) {
-              savePage(bookId, page);
+          if (location?.start?.cfi) {
+            lastCfi = location.start.cfi;
+            if (anchorDisplayPending) {
+              // Caused by our own re-anchor display — keep the original anchor.
+              anchorDisplayPending = false;
+            } else {
+              anchorCfi = location.start.cfi;
+            }
+            if (allowSavePage) savePageCfiLS(bookId, location.start.cfi);
+            if (totalLocs > 0 && book.locations) {
+              const pct = book.locations.percentageFromCfi(location.start.cfi);
+              const page = percentageToPage(pct, totalLocs);
+              landedPage = page;
+              setCurrentPage(page);
+              if (allowSavePage) savePage(bookId, page);
             }
           }
           if (location?.start?.href && book.navigation) {
@@ -211,7 +272,7 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
                     if (currentText && currentText.length > 0 && currentSel && currentSel.rangeCount > 0) {
                       const range = currentSel.getRangeAt(0);
                       try {
-                        const contents = renditionRef.current?.getContents()[0];
+                        const contents = (renditionRef.current?.getContents() as any)?.[0];
                         if (contents) {
                           const cfiRange = contents.cfiFromRange(range);
                           if (cfiRange) {
@@ -269,19 +330,107 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
           });
         });
 
-        // Go directly to saved page (no delays)
-        const savedPageNum = getSavedPage(bookId);
-        if (savedPageNum > 1 && total > 0) {
-          const pct = pageToPercentage(savedPageNum, total);
-          const cfi = book.locations.cfiFromPercentage(pct);
-          await rendition.display(cfi);
-        } else {
-          await rendition.display();
+        // ── Restore last position (simplest possible way) ──
+        // Initial render to get the book on screen and the layout measured,
+        // then jump to the saved page with the exact same function the manual
+        // "Go to" navigator uses — all behind the loading screen.
+        const waitRelocated = () => new Promise<void>((resolve) => {
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            (rendition as any).off('relocated', finish);
+            resolve();
+          };
+          (rendition as any).on('relocated', finish);
+          setTimeout(finish, 500);
+        });
+
+        const settledInitial = waitRelocated();
+        await rendition.display();
+        await settledInitial;
+        if (cancelled) return;
+
+        const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+        const savedCfi = loadPageCfiLS(bookId);
+        const targetPage = getSavedPage(bookId);
+
+        if (savedCfi || targetPage > 1) {
+          if (totalLocs === 0) {
+            // Locations are required to navigate/verify by page number. One-
+            // time cost per book — cached for every later open.
+            await book.locations.generate(1024);
+            if (cancelled) return;
+            saveLocationsLS(bookId, (book.locations as any).save());
+            totalLocs = (book.locations as any).length();
+            setTotalPages(totalLocs);
+          }
+
+          // Where we want to land. The page number of a CFI is layout-
+          // independent (derived from 1024-char location blocks), so the
+          // saved CFI's page equals the saved page number across sessions.
+          const wantPage = savedCfi
+            ? percentageToPage(book.locations.percentageFromCfi(savedCfi), totalLocs)
+            : targetPage;
+
+          // Issue the jump (exact CFI when we have one, else by page number).
+          const goToTarget = async () => {
+            const settled = waitRelocated();
+            if (savedCfi) {
+              anchorCfi = savedCfi;
+              anchorDisplayPending = true;
+              await rendition.display(savedCfi);
+            } else {
+              navigateToPage(targetPage, book, rendition);
+            }
+            await settled;
+          };
+
+          // Hold the loading screen until we've actually landed on wantPage
+          // and it stays there. The reader keeps its final size during
+          // loading (the footer's space is reserved), so revealing never
+          // re-paginates — but a section's first render can still settle for
+          // a moment and shift the page with no event from epubjs. Poll the
+          // real position; re-issue the jump whenever it's off target; reveal
+          // only after it reads correct several checks in a row.
+          await goToTarget();
+          let stable = 0;
+          for (let i = 0; i < 30 && !cancelled && stable < 3; i++) {
+            await sleep(120);
+            let curPage = 0;
+            try {
+              const curCfi = (rendition as any).currentLocation()?.start?.cfi;
+              if (curCfi) curPage = percentageToPage(book.locations.percentageFromCfi(curCfi), totalLocs);
+            } catch { }
+            if (curPage === wantPage) {
+              stable++;
+            } else {
+              stable = 0;
+              await goToTarget();
+            }
+          }
         }
+        if (cancelled) return;
+        allowSavePage = true;
         setLoading(false);
 
-        // Enable saving after a brief settle
-        setTimeout(() => { readyToSaveRef.current = true; }, 1000);
+        // First open of this book: build locations in the background now that
+        // the book is visible, cache them, and backfill the footer numbers.
+        if (totalLocs === 0) {
+          try {
+            await book.locations.generate(1024);
+            if (cancelled) return;
+            saveLocationsLS(bookId, (book.locations as any).save());
+            totalLocs = (book.locations as any).length();
+            setTotalPages(totalLocs);
+            if (lastCfi) {
+              const page = percentageToPage(book.locations.percentageFromCfi(lastCfi), totalLocs);
+              setCurrentPage(page);
+              savePage(bookId, page);
+            }
+          } catch { /* locations are a nicety; the book is already visible */ }
+        }
+
 
       } catch (err: any) {
         if (!cancelled) {
@@ -295,7 +444,6 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
 
     return () => {
       cancelled = true;
-      readyToSaveRef.current = false;
       if (selectionPollRef.current) clearInterval(selectionPollRef.current);
       if (renditionRef.current) renditionRef.current.destroy();
       if (bookRef.current) bookRef.current.destroy();
@@ -303,12 +451,16 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
   }, [bookId]);
 
   // ── Font size update without reload ──────────────────
+  // Depends on fontSize only: re-applying the theme reflows the iframe's
+  // columns and silently shifts the position (no relocated fires). Reacting
+  // to `loading` made that happen right after every restore — the theme is
+  // already applied in loadBook before the first render.
   useEffect(() => {
     const rendition = renditionRef.current;
     if (rendition && !loading) {
       applyTheme(rendition, fontSize);
     }
-  }, [fontSize, loading]);
+  }, [fontSize]);
 
   // ── Resize stability: keep current page on resize ───
   const currentPageRef = useRef(0);
@@ -338,6 +490,7 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
       rendition.off('resized', handleResize);
     };
   }, [loading]);
+
 
   const goNext = () => renditionRef.current?.next();
   const goPrev = () => renditionRef.current?.prev();
@@ -401,8 +554,10 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
         />
       </div>
 
-      {!loading && (
-        <div className="flex items-center justify-between mt-3 px-2">
+      {/* Always rendered so its height is reserved during loading: mounting it
+          only on reveal would shrink the reader and force epubjs to
+          re-paginate, shifting the restored page (visible flicker). */}
+      <div className={`flex items-center justify-between mt-3 px-2 ${loading ? 'invisible' : ''}`}>
           <div className="flex-1 min-w-0 mr-3 hidden sm:block">
             {currentChapter && (
               <p className="text-xs text-surface-200/40 truncate" title={currentChapter}>
@@ -467,8 +622,7 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
               Go
             </button>
           </form>
-        </div>
-      )}
+      </div>
     </div>
   );
 });
@@ -487,8 +641,218 @@ function applyTheme(rendition: Rendition, fontSize: number) {
     },
     'p': { 'margin-bottom': '0.8em !important' },
     'a': { 'color': '#818cf8 !important' },
-    '::selection': { 'background': 'rgba(99, 102, 241, 0.4) !important' },
+    '::selection': { 'background': 'transparent !important', 'color': 'rgb(255,240,180) !important' },
     '.epubjs-hl': { 'fill': 'rgba(234, 179, 8, 0.4)', 'fill-opacity': '0.4', 'mix-blend-mode': 'multiply' }
+  });
+}
+
+function getCheckpointOffset(doc: Document, range: Range): number {
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let count = 0;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (node === range.endContainer) return count + range.endOffset;
+    count += node.length;
+  }
+  return count;
+}
+
+function buildRangeFromOffset(doc: Document, offset: number): Range | null {
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let remaining = offset;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (remaining <= node.length) {
+      try {
+        const r = doc.createRange();
+        r.setStart(doc.body, 0);
+        r.setEnd(node, remaining);
+        return r;
+      } catch { return null; }
+    }
+    remaining -= node.length;
+  }
+  return null;
+}
+
+// Per-chapter character offset of the checkpoint, used to restore the visual highlight.
+function saveCheckpointLS(bookId: string, spineKey: string, offset: number) {
+  try {
+    const raw = localStorage.getItem(CHECKPOINT_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    if (!data[bookId]) data[bookId] = {};
+    data[bookId][spineKey] = offset;
+    localStorage.setItem(CHECKPOINT_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function loadCheckpointLS(bookId: string, spineKey: string): number | null {
+  try {
+    const raw = localStorage.getItem(CHECKPOINT_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    const val = data?.[bookId]?.[spineKey];
+    return typeof val === 'number' ? val : null;
+  } catch { return null; }
+}
+
+function registerReadingCursorHook(rendition: Rendition, bookId: string) {
+  (rendition as any).hooks.content.register((contents: any) => {
+    const doc = contents.document as Document;
+    if (!doc?.head) return;
+
+    const win = doc.defaultView as any;
+    if (!win || typeof win.Highlight === 'undefined' || !win.CSS?.highlights) return;
+
+    const spineKey: string = contents.cfiBase ?? 'default';
+
+    const saveCheckpoint = (r: Range) => {
+      saveCheckpointLS(bookId, spineKey, getCheckpointOffset(doc, r));
+    };
+
+    const baseStyle = doc.createElement('style');
+    baseStyle.textContent = 'body { color: rgba(226,232,240,0.28) !important; }';
+    doc.head.appendChild(baseStyle);
+
+    const hlStyle = doc.createElement('style');
+    hlStyle.textContent = '::highlight(epub-read) { color: #e2e8f0 !important; }';
+    doc.head.appendChild(hlStyle);
+
+    const setReadColor = (c: string) => {
+      hlStyle.textContent = `::highlight(epub-read) { color: ${c} !important; }`;
+    };
+
+    const readHighlight = new win.Highlight();
+    win.CSS.highlights.set('epub-read', readHighlight);
+
+    let rafId: number | null = null;
+    let paused = true;
+    let checkpoint: Range | null = null;
+    let lastActiveRange: Range | null = null;
+    let resumeTimer: number | null = null;
+    let mouseDownHadSelection = false;
+
+    const getCaret = (x: number, y: number): Range | null =>
+      (doc as any).caretRangeFromPoint?.(x, y) ?? null;
+
+    // Snap the caret to the end of the word it lands on
+    const buildRange = (caret: Range): Range | null => {
+      if (!doc.body) return null;
+      try {
+        let endNode: Node = caret.startContainer;
+        let endOffset: number = caret.startOffset;
+        if (endNode.nodeType === Node.TEXT_NODE) {
+          const txt = (endNode as Text).data;
+          while (endOffset < txt.length && /\S/.test(txt[endOffset])) endOffset++;
+        }
+        const r = doc.createRange();
+        r.setStart(doc.body, 0);
+        r.setEnd(endNode, endOffset);
+        return r;
+      } catch { return null; }
+    };
+
+    const applyRange = (r: Range) => {
+      readHighlight.clear();
+      try { readHighlight.add(r); } catch {}
+    };
+
+    // Restore saved checkpoint on load
+    const savedOffset = loadCheckpointLS(bookId, spineKey);
+    if (savedOffset !== null) {
+      win.requestAnimationFrame(() => {
+        const r = buildRangeFromOffset(doc, savedOffset);
+        if (r) { checkpoint = r; applyRange(r); }
+      });
+    }
+
+    // ── Selection change: immediate visual feedback ───────
+    const onSelectionChange = () => {
+      const sel = win.getSelection?.();
+      const hasSelection = !!(sel && sel.toString().trim().length > 0);
+
+      if (hasSelection) {
+        // Dim the read-text highlight to a midpoint — don't clear it
+        setReadColor('rgba(226,232,240,0.62)');
+        if (!paused) {
+          paused = true;
+          checkpoint = lastActiveRange;
+          if (rafId !== null) { win.cancelAnimationFrame(rafId); rafId = null; }
+          if (checkpoint) {
+            saveCheckpoint(checkpoint);
+          }
+        }
+      } else {
+        setReadColor('#e2e8f0');
+        if (paused && checkpoint) applyRange(checkpoint);
+      }
+    };
+
+    // ── Click: save checkpoint or resume ─────────────────
+    const onMouseDown = () => {
+      const sel = win.getSelection?.();
+      mouseDownHadSelection = !!(sel && sel.toString().trim().length > 0);
+    };
+
+    const onClick = (e: MouseEvent) => {
+      const sel = win.getSelection?.();
+      if (sel && sel.toString().trim().length > 0) return;
+      if (mouseDownHadSelection) { mouseDownHadSelection = false; return; }
+
+      if (paused) {
+        if (resumeTimer !== null) { win.clearTimeout(resumeTimer); resumeTimer = null; return; }
+        resumeTimer = win.setTimeout(() => {
+          resumeTimer = null;
+          paused = false;
+          checkpoint = null;
+          setReadColor('#e2e8f0');
+          readHighlight.clear();
+        }, 250);
+      } else {
+        if (rafId !== null) { win.cancelAnimationFrame(rafId); rafId = null; }
+        const caret = getCaret(e.clientX, e.clientY);
+        if (!caret) return;
+        const r = buildRange(caret);
+        if (r) {
+          paused = true;
+          checkpoint = r;
+          applyRange(r);
+          saveCheckpoint(r);
+        }
+      }
+    };
+
+    const onDblClick = () => {
+      if (resumeTimer !== null) { win.clearTimeout(resumeTimer); resumeTimer = null; }
+    };
+
+    // ── Mouse move: active reading ────────────────────────
+    const onMove = (e: MouseEvent) => {
+      if (paused) return; // selectionchange handles checkpoint restore
+
+      if (rafId !== null) win.cancelAnimationFrame(rafId);
+      rafId = win.requestAnimationFrame(() => {
+        rafId = null;
+        const caret = getCaret(e.clientX, e.clientY);
+        if (!caret) return;
+        const r = buildRange(caret);
+        if (r) { lastActiveRange = r; applyRange(r); }
+      });
+    };
+
+    const onLeave = () => {
+      if (paused) return;
+      if (rafId !== null) { win.cancelAnimationFrame(rafId); rafId = null; }
+      readHighlight.clear();
+      lastActiveRange = null;
+    };
+
+    doc.addEventListener('selectionchange', onSelectionChange);
+    doc.addEventListener('mousedown', onMouseDown);
+    doc.addEventListener('click', onClick);
+    doc.addEventListener('dblclick', onDblClick);
+    doc.addEventListener('mousemove', onMove);
+    doc.addEventListener('mouseleave', onLeave);
   });
 }
 

@@ -14,13 +14,16 @@ async def lookup(word: str, source_lang: str, target_lang: str) -> dict | None:
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
-    
+    # WordReference serves an anti-bot challenge (HTTP 418) that asks the client to
+    # set this cookie and reload. Sending it up front bypasses the challenge.
+    cookies = {"nginx_wr_human": "1"}
+
     categories_dict: dict[str, list[WREntry]] = {}
-    
+
     start_val = 0
     max_pages = 10  # Safety limit
-    
-    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, cookies=cookies) as client:
         for page in range(max_pages):
             url = f"https://www.wordreference.com/{dict_code}/{word}"
             if start_val > 0:

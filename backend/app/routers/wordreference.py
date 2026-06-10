@@ -16,8 +16,9 @@ async def get_wordreference(req: SearchRequest):
             source_lang=req.source_lang,
             target_lang=req.target_lang,
         )
-        if not result:
-            raise HTTPException(status_code=404, detail="No WordReference results found")
-        return WordReferenceResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"WordReference lookup failed: {str(e)}")
+
+    if not result:
+        raise HTTPException(status_code=404, detail="No WordReference results found")
+    return WordReferenceResponse(**result)

@@ -1,6 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import type { WordReferenceResponse, WREntry } from '../types';
 import { HiOutlineBookmarkAlt, HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi';
+
+export interface WordReferenceCardHandle {
+  navigate: (dir: 'prev' | 'next') => void;
+}
 
 interface Props {
   data: WordReferenceResponse;
@@ -8,7 +12,9 @@ interface Props {
   hasAudio?: boolean;
 }
 
-export default function WordReferenceCard({ data, isWide = false, hasAudio = false }: Props) {
+const WordReferenceCard = forwardRef<WordReferenceCardHandle, Props>(function WordReferenceCard(
+  { data, isWide = false, hasAudio = false }, ref
+) {
   const [availableHeight, setAvailableHeight] = useState(600);
   const [history, setHistory] = useState<number[]>([0]);
 
@@ -116,8 +122,13 @@ export default function WordReferenceCard({ data, isWide = false, hasAudio = fal
   const hasNext = nextIndex < flatEntries.length;
   const hasPrev = history.length > 1;
 
-  const handleNext = () => setHistory(p => [...p, nextIndex]);
-  const handlePrev = () => setHistory(p => p.slice(0, -1));
+  const handleNext = () => { if (hasNext) setHistory(p => [...p, nextIndex]); };
+  const handlePrev = () => { if (hasPrev) setHistory(p => p.slice(0, -1)); };
+
+  // Expose navigate() to the parent via ref
+  useImperativeHandle(ref, () => ({
+    navigate: (dir) => { if (dir === 'next') handleNext(); else handlePrev(); },
+  }), [hasNext, hasPrev, nextIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="bg-surface-800/60 backdrop-blur-sm rounded-xl border border-surface-700/50 p-4 sm:p-5 animate-fade-in relative shadow-lg">
@@ -206,4 +217,6 @@ export default function WordReferenceCard({ data, isWide = false, hasAudio = fal
       </div>
     </div>
   );
-}
+});
+
+export default WordReferenceCard;

@@ -141,7 +141,11 @@ export default function App() {
   }, [upload]);
 
   const handleTextSelect = useCallback((text: string) => {
-    setSelectedText({ text, ts: Date.now() });
+    if (!text) {
+      setSelectedText(null);
+    } else {
+      setSelectedText({ text, ts: Date.now() });
+    }
   }, []);
 
   const handleUrlImport = useCallback(async (e: React.FormEvent) => {
@@ -357,9 +361,9 @@ export default function App() {
               )}
               <div className="flex-1 w-full max-w-[900px] mx-auto flex flex-col overflow-hidden">
                 {selectedBook.type === 'pdf' ? (
-                  <PdfReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} />
+                  <PdfReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} suppressArrowKeys={!!selectedText} />
                 ) : (
-                  <EpubReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} />
+                  <EpubReader bookId={selectedBook.id} onTextSelect={handleTextSelect} fontSize={fontSize} suppressArrowKeys={!!selectedText} />
                 )}
               </div>
             </div>
@@ -466,6 +470,7 @@ export default function App() {
             sourceLang={sourceLang}
             targetLang={targetLang}
             isWide={sidebarWidth > 670}
+            onDeselect={() => setSelectedText(null)}
           />
         </aside>
       </div>

@@ -9,6 +9,7 @@ interface Props {
   bookId: string;
   onTextSelect?: (text: string) => void;
   fontSize?: number;
+  suppressArrowKeys?: boolean;
 }
 
 // ── LocalStorage: save/load page number ────────────────
@@ -132,7 +133,7 @@ function percentageToPage(pct: number, total: number): number {
 
 // ── Component ──────────────────────────────────────────
 
-export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize = 16 }: Props) {
+export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize = 16, suppressArrowKeys = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -258,13 +259,23 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
                 const handleSelectionEnd = () => {
                   setTimeout(() => {
                     const currentSel = iframeWin.getSelection();
-                    const currentText = currentSel?.toString().trim();
+                    const currentText = currentSel?.toString().trim() || '';
 
                     if (!isHighlighterOnRef.current) {
-                      if (currentText && currentText.length > 0 && currentText !== lastSelectedRef.current) {
-                        lastSelectedRef.current = currentText;
-                        if (onTextSelectRef.current && !isEraserOnRef.current) {
-                          onTextSelectRef.current(currentText);
+                      if (currentText && currentText.length > 0) {
+                        if (currentText !== lastSelectedRef.current) {
+                          lastSelectedRef.current = currentText;
+                          if (onTextSelectRef.current && !isEraserOnRef.current) {
+                            onTextSelectRef.current(currentText);
+                          }
+                        }
+                      } else {
+                        // Text was deselected via click
+                        if (lastSelectedRef.current !== '') {
+                          lastSelectedRef.current = '';
+                          if (onTextSelectRef.current) {
+                            onTextSelectRef.current('');
+                          }
                         }
                       }
                       return;
@@ -305,8 +316,56 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
                     if (val !== '') return;
                   }
 
-                  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); renditionRef.current?.next(); }
-                  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); renditionRef.current?.prev(); }
+                  // Check the suppressArrowKeys ref which reflects whether a word is selected
+                  const suppress = suppressArrowKeysRef.current;
+
+                  if (e.key === 'Escape') {
+                    // Clear the actual text selection in the browser to trigger onSelectionChange
+                    // which handles resuming the reading mode automatically.
+                    iframeWin.getSelection()?.removeAllRanges();
+                    // Forward Escape to parent so SearchSidebar can clear its state
+                    window.parent.dispatchEvent(new KeyboardEvent('keydown', {
+                      key: 'Escape', code: 'Escape', bubbles: true, cancelable: true,
+                    }));
+                    return;
+                  }
+
+                  if (!suppress) {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); renditionRef.current?.next(); }
+                    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); renditionRef.current?.prev(); }
+                  }
+                  // When suppressed, arrow keys bubble to parent window where SearchSidebar handles them.
+                  // But since the event is in the iframe, we need to forward it:
+                  if (suppress && !e.metaKey && !e.ctrlKey && !e.altKey &&
+                      (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+                    e.preventDefault();
+                    window.parent.dispatchEvent(new KeyboardEvent('keydown', {
+                      key: e.key, code: e.code, bubbles: true, cancelable: true,
+                    }));
+                    return;
+                  }
+
+                  if (e.key === 'Backspace') {
+                    const searchInput = window.parent.document.getElementById('search-input') as HTMLInputElement | null;
+                    if (searchInput) {
+                      searchInput.focus();
+                      const nativeSetter = Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype, 'value')?.set;
+                      if (nativeSetter) {
+                        nativeSetter.call(searchInput, searchInput.value.slice(0, -1));
+                        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                      }
+                    }
+                  } else if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
+                    const searchInput = window.parent.document.getElementById('search-input') as HTMLInputElement | null;
+                    if (searchInput) {
+                      searchInput.focus();
+                      const nativeSetter = Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype, 'value')?.set;
+                      if (nativeSetter) {
+                        nativeSetter.call(searchInput, searchInput.value + e.key);
+                        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                      }
+                    }
+                  }
                 };
 
                 iframeWin.addEventListener('mouseup', handleSelectionEnd);
@@ -493,6 +552,10 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
   }, [loading]);
 
 
+  // Stable ref so the iframe's closure always sees the current suppressArrowKeys value
+  const suppressArrowKeysRef = useRef(suppressArrowKeys);
+  suppressArrowKeysRef.current = suppressArrowKeys;
+
   const goNext = () => renditionRef.current?.next();
   const goPrev = () => renditionRef.current?.prev();
 
@@ -508,8 +571,10 @@ export default React.memo(function EpubReader({ bookId, onTextSelect, fontSize =
         if (val !== '') return;
       }
 
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goNext(); }
-      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goPrev(); }
+      if (!suppressArrowKeysRef.current) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goNext(); }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goPrev(); }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -786,6 +851,7 @@ function registerReadingCursorHook(rendition: Rendition, bookId: string) {
 
     let rafId: number | null = null;
     let paused = true;
+    let pausedBySelection = false; // true when paused *only* because of a text selection
     let checkpoint: Range | null = null;
     let lastActiveRange: Range | null = null;
     let resumeTimer: number | null = null;
@@ -834,7 +900,9 @@ function registerReadingCursorHook(rendition: Rendition, bookId: string) {
         // Dim the read-text highlight to a midpoint — don't clear it
         setReadColor('rgba(226,232,240,0.62)');
         if (!paused) {
+          // Reading mode was ACTIVE — pause it and remember it was due to selection
           paused = true;
+          pausedBySelection = true;
           checkpoint = lastActiveRange;
           if (rafId !== null) { win.cancelAnimationFrame(rafId); rafId = null; }
           if (checkpoint) {
@@ -844,10 +912,24 @@ function registerReadingCursorHook(rendition: Rendition, bookId: string) {
       } else {
         setReadColor('#e2e8f0');
         if (paused && checkpoint) applyRange(checkpoint);
+
+        if (pausedBySelection) {
+          // Was paused only because of a selection → auto-resume reading mode.
+          // Do NOT call readHighlight.clear() here: the checkpoint was just
+          // re-applied above and must stay visible until the mouse moves.
+          pausedBySelection = false;
+          paused = false;
+          checkpoint = null;
+        }
       }
     };
 
     // ── Click: save checkpoint or resume ─────────────────
+    // Track when onClick last paused an ACTIVE reading session. Used by onDblClick
+    // to detect that the double-click sequence caused the pause (< 400 ms ago)
+    // rather than a prior manual pause by the user.
+    let lastPausedTime = 0;
+
     const onMouseDown = () => {
       const sel = win.getSelection?.();
       mouseDownHadSelection = !!(sel && sel.toString().trim().length > 0);
@@ -863,6 +945,7 @@ function registerReadingCursorHook(rendition: Rendition, bookId: string) {
         resumeTimer = win.setTimeout(() => {
           resumeTimer = null;
           paused = false;
+          pausedBySelection = false;
           checkpoint = null;
           setReadColor('#e2e8f0');
           readHighlight.clear();
@@ -874,6 +957,8 @@ function registerReadingCursorHook(rendition: Rendition, bookId: string) {
         const r = buildRange(caret);
         if (r) {
           paused = true;
+          pausedBySelection = false;
+          lastPausedTime = Date.now(); // record that we just paused an ACTIVE session
           checkpoint = r;
           applyRange(r);
           saveCheckpoint(r);
@@ -883,6 +968,18 @@ function registerReadingCursorHook(rendition: Rendition, bookId: string) {
 
     const onDblClick = () => {
       if (resumeTimer !== null) { win.clearTimeout(resumeTimer); resumeTimer = null; }
+      // The first click of a double-click fires onClick, which pauses reading mode and
+      // sets lastPausedTime. By the time onDblClick fires (typically < 300 ms later),
+      // we check if that pause was very recent — if so, it was caused by THIS
+      // double-click sequence and should be treated as a selection-based pause so
+      // deselecting auto-resumes reading mode.
+      // If the user manually paused much earlier (> 400 ms), we leave the state alone.
+      if (Date.now() - lastPausedTime < 400) {
+        lastPausedTime = 0;
+        pausedBySelection = true;
+        checkpoint = lastActiveRange;
+        if (checkpoint) saveCheckpoint(checkpoint);
+      }
     };
 
     // ── Mouse move: active reading ────────────────────────

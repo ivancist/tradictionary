@@ -11,6 +11,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 interface Props {
   bookId: string;
   onTextSelect?: (text: string) => void;
+  suppressArrowKeys?: boolean;
 }
 
 const PAGES_KEY = 'tradictionary-pdf-pages';
@@ -138,7 +139,7 @@ function VirtualPage({
 }
 
 
-export default React.memo(function PdfReader({ bookId, onTextSelect }: Props) {
+export default React.memo(function PdfReader({ bookId, onTextSelect, suppressArrowKeys = false }: Props) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(() => getSavedPage(bookId));
   const [loading, setLoading] = useState(true);
@@ -206,7 +207,7 @@ export default React.memo(function PdfReader({ bookId, onTextSelect }: Props) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === 'INPUT') return;
-      if (viewMode === 'single') {
+      if (!suppressArrowKeys && viewMode === 'single') {
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
         else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
       }
@@ -218,7 +219,7 @@ export default React.memo(function PdfReader({ bookId, onTextSelect }: Props) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goNext, goPrev, viewMode]);
+  }, [goNext, goPrev, viewMode, suppressArrowKeys]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;

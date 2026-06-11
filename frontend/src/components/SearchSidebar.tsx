@@ -4,6 +4,7 @@ import { useSearch } from '../hooks/useSearch';
 import TranslationCard from './TranslationCard';
 import DefinitionCard from './DefinitionCard';
 import WordReferenceCard from './WordReferenceCard';
+import type { WordReferenceCardHandle } from './WordReferenceCard';
 import ImageGrid from './ImageGrid';
 import AudioPlayer from './AudioPlayer';
 
@@ -12,31 +13,75 @@ interface Props {
   sourceLang: string;
   targetLang: string;
   isWide?: boolean;
+  onDeselect?: () => void;
 }
 
 const Skeleton = ({ h }: { h: string }) => (
   <div className={`w-full bg-surface-800/40 border border-surface-700/30 rounded-xl animate-pulse-soft ${h}`} />
 );
 
-export default function SearchSidebar({ selectedText, sourceLang, targetLang, isWide = false }: Props) {
+export default function SearchSidebar({ selectedText, sourceLang, targetLang, isWide = false, onDeselect }: Props) {
   const [query, setQuery] = useState('');
   const [displayWord, setDisplayWord] = useState('');
   const { result, error, search, clear } = useSearch();
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrCardRef = useRef<WordReferenceCardHandle>(null);
 
-  // Redirect any keypress to the search input when not already focused
+  // ── Keyboard routing ────────────────────────────────────
+  // Guard on `selectedText` (the prop from App.tsx), NOT on `displayWord`.
+  // `displayWord` persists as the last searched word even after deselection,
+  // so using it would permanently intercept arrow keys after the first search.
+  // `selectedText` is null when the user has deselected, correctly restoring
+  // arrow-key control to the document reader.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement).isContentEditable) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key.length === 1) {
-        inputRef.current?.focus();
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase() ?? '';
+      const isInput = tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable;
+
+      if (selectedText) {
+        // Word is actively selected — intercept navigation keys
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onDeselect?.();
+          
+          // Clear any native browser selection inside reader iframes
+          // This forces the EpubReader to fire onSelectionChange(false) and auto-resume reading
+          document.querySelectorAll('iframe').forEach(iframe => {
+            try {
+              iframe.contentWindow?.getSelection()?.removeAllRanges();
+            } catch (err) {}
+          });
+          
+          return;
+        }
+        if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            wrCardRef.current?.navigate('next');
+            return;
+          }
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            wrCardRef.current?.navigate('prev');
+            return;
+          }
+        }
+        // Printable characters: redirect to search input (existing behaviour)
+        if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
+          inputRef.current?.focus();
+        }
+      } else {
+        // No active selection — only redirect printable chars to search input
+        if (isInput) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (e.key.length === 1) {
+          inputRef.current?.focus();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [selectedText, onDeselect]);
 
   // When selectedText changes, search silently (never touch the search bar)
   useEffect(() => {
@@ -44,8 +89,9 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
       const text = selectedText.trim();
       setDisplayWord(text);
       search({ text, source_lang: sourceLang, target_lang: targetLang });
-      // Focus input after selection so typing lands there immediately
-      setTimeout(() => inputRef.current?.focus(), 100);
+      // Do NOT steal focus here: the user may want to click elsewhere
+      // (e.g. on the epub reader to deselect the word). The global keydown
+      // listener already redirects any keypress to the search input.
     }
   }, [selectedText, sourceLang, targetLang, search]);
 
@@ -122,7 +168,7 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
                   
                   {result.wordCount <= 4 && (
                     result.wordreference ? (
-                      <WordReferenceCard data={result.wordreference} isWide={isWide} hasAudio={!!result.audio_url} />
+                      <WordReferenceCard ref={wrCardRef} data={result.wordreference} isWide={isWide} hasAudio={!!result.audio_url} />
                     ) : (
                       <Skeleton h="h-64" />
                     )
@@ -187,7 +233,7 @@ export default function SearchSidebar({ selectedText, sourceLang, targetLang, is
                 
                 {result.wordCount <= 4 && (
                   result.wordreference ? (
-                    <WordReferenceCard data={result.wordreference} hasAudio={!!result.audio_url} />
+                    <WordReferenceCard ref={wrCardRef} data={result.wordreference} hasAudio={!!result.audio_url} />
                   ) : (
                     <Skeleton h="h-64" />
                   )
